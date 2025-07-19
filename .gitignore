@@ -21,3 +21,5 @@ result-lib/
 **/.DS_Store
 
 .pre-commit-config.yaml
+
+*.ppm

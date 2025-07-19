@@ -65,6 +65,35 @@
           env = [
           ];
 
+          commands = [
+            {
+              name = "watch-img";
+              help = "viu frontend that watches an image for changes";
+              command = ''
+                set -euo pipefail
+
+                # Check if file path is provided
+                if [[ $# -ne 1 ]]; then
+                    echo "Usage: $0 <path-to-img-file>" >&2
+                    exit 1
+                fi
+
+                IMG_FILE="$1"
+
+                clear
+                ${pkgs.viu}/bin/viu "$IMG_FILE"
+
+                # Watch for changes and re-render
+                # for some reason, fsevents_monitor is really slow on my macbook,
+                # so we use poll_monitor instead.
+                ${pkgs.fswatch}/bin/fswatch -m poll_monitor -o "$IMG_FILE" | while read -r; do
+                    clear
+                    ${pkgs.viu}/bin/viu "$IMG_FILE"
+                done
+              '';
+            }
+          ];
+
           devshell = {
             packagesFrom = [
               self'.devShells.rust
