@@ -1,6 +1,4 @@
-use std::f64::INFINITY;
-
-use rand::random;
+use rand::Rng;
 
 use crate::{hittable::Hittable, interval::Interval, ray::Ray, vector::Vector3};
 
@@ -35,18 +33,15 @@ impl Default for Camera {
 
 impl Camera {
     pub fn initialize(self) -> InitializedCamera {
-        let image_width = self.image_width;
-        let samples_per_pixel = self.samples_per_pixel;
-
         let image_height = {
             let h = (self.image_width as f64 / self.aspect_ratio) as u32;
             if h < 1 { 1 } else { h }
         };
 
-        let pixel_samples_scale = 1.0 / samples_per_pixel as f64;
+        let pixel_samples_scale = 1.0 / self.samples_per_pixel as f64;
 
         let viewport_height = 2.0;
-        let viewport_width = viewport_height * image_width as f64 / image_height as f64;
+        let viewport_width = viewport_height * self.image_width as f64 / image_height as f64;
 
         let focal_length = 1.0;
         let center = Vector3::ZERO;
@@ -54,7 +49,7 @@ impl Camera {
         let viewport_u = Vector3::new(viewport_width, 0.0, 0.0);
         let viewport_v = Vector3::new(0.0, -viewport_height, 0.0);
 
-        let pixel_du = viewport_u / image_width as f64;
+        let pixel_du = viewport_u / self.image_width as f64;
         let pixel_dv = viewport_v / image_height as f64;
 
         let viewport_upper_left =
@@ -62,20 +57,20 @@ impl Camera {
         let pixel00_loc = viewport_upper_left + (pixel_du + pixel_dv) * 0.5;
 
         InitializedCamera {
-            image_width,
+            image_width: self.image_width,
+            samples_per_pixel: self.samples_per_pixel,
             image_height,
             center,
             pixel00_loc,
             pixel_du,
             pixel_dv,
-            samples_per_pixel,
             pixel_samples_scale,
         }
     }
 }
 
 impl InitializedCamera {
-    pub fn render(&self, world: &impl Hittable) {
+    pub fn render(&self, rng: &mut impl Rng, world: &impl Hittable) {
         println!("P3");
         println!("{} {}", self.image_width, self.image_height);
         println!("{}", 255);
@@ -84,7 +79,8 @@ impl InitializedCamera {
             eprint!("\rScanlines remaining: {}", self.image_height - row);
             for col in 0..self.image_width {
                 let color = (0..self.samples_per_pixel)
-                    .map(|_| self.get_ray(col, row))
+                    .map(|_| sample_square(rng))
+                    .map(|offset| self.get_ray(col, row, offset))
                     .map(|ray| ray_color(ray, world))
                     .fold(Vector3::ZERO, |acc, e| acc + e);
 
@@ -93,22 +89,25 @@ impl InitializedCamera {
         }
     }
 
-    fn get_ray(&self, col: u32, row: u32) -> Ray {
-        let offset = self.sample_square();
+    fn get_ray(&self, col: u32, row: u32, offset: Vector3) -> Ray {
         let pixel_sample = self.pixel00_loc
             + ((col as f64 + offset.x) * self.pixel_du)
             + ((row as f64 + offset.y) * self.pixel_dv);
 
         Ray::new(self.center, pixel_sample - self.center)
     }
+}
 
-    fn sample_square(&self) -> Vector3 {
-        Vector3::new(random::<f64>() - 0.5, random::<f64>() - 0.5, 0.0)
-    }
+fn sample_square(rng: &mut impl Rng) -> Vector3 {
+    Vector3::new(
+        rng.random_range(0.0..1.0) - 0.5,
+        rng.random_range(0.0..1.0) - 0.5,
+        0.0,
+    )
 }
 
 fn ray_color(ray: Ray, world: &impl Hittable) -> Vector3 {
-    if let Some(hit) = world.hit(ray, Interval::new(0.0, INFINITY)) {
+    if let Some(hit) = world.hit(ray, Interval::new(0.0, f64::INFINITY)) {
         return (hit.face_normal + Vector3::new(1.0, 1.0, 1.0)) * 0.5;
     }
 
