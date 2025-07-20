@@ -8,11 +8,13 @@ pub struct Camera {
     pub aspect_ratio: f64,
     pub image_width: u32,
     pub samples_per_pixel: u32,
+    pub max_depth: u32,
 }
 
 pub struct InitializedCamera {
     image_width: u32,
     samples_per_pixel: u32,
+    max_depth: u32,
 
     // Derived
     image_height: u32,
@@ -29,6 +31,7 @@ impl Default for Camera {
             aspect_ratio: 1.0,
             image_width: 100,
             samples_per_pixel: 10,
+            max_depth: 10,
         }
     }
 }
@@ -61,6 +64,7 @@ impl Camera {
         InitializedCamera {
             image_width: self.image_width,
             samples_per_pixel: self.samples_per_pixel,
+            max_depth: self.max_depth,
             image_height,
             center,
             pixel00_loc,
@@ -83,7 +87,7 @@ impl InitializedCamera {
                 let color = (0..self.samples_per_pixel)
                     .map(|_| sample_square(&mut *rng.borrow_mut()))
                     .map(|offset| self.get_ray(col, row, offset))
-                    .map(|ray| ray_color(&mut *rng.borrow_mut(), ray, world))
+                    .map(|ray| ray_color(&mut *rng.borrow_mut(), ray, world, self.max_depth))
                     .fold(Vector3::ZERO, |acc, e| acc + e);
 
                 println!("{}", ppm_pixel(color * self.pixel_samples_scale))
@@ -104,10 +108,24 @@ fn sample_square(rng: &mut impl Rng) -> Vector3 {
     Vector3::new(rng.random::<f64>() - 0.5, rng.random::<f64>() - 0.5, 0.0)
 }
 
-fn ray_color(rng: &mut impl Rng, ray: Ray, world: &impl Hittable) -> Vector3 {
+fn ray_color(
+    rng: &mut impl Rng,
+    ray: Ray,
+    world: &impl Hittable,
+    remaining_ray_bounces: u32,
+) -> Vector3 {
+    if remaining_ray_bounces <= 0 {
+        return Vector3::ZERO;
+    }
+
     if let Some(hit) = world.hit(ray, Interval::new(0.0, f64::INFINITY)) {
         let direction = Vector3::random_on_hemisphere(rng, hit.face_normal);
-        return (ray_color(rng, Ray::new(hit.p, direction), world)) * 0.5;
+        return (ray_color(
+            rng,
+            Ray::new(hit.p, direction),
+            world,
+            remaining_ray_bounces - 1,
+        )) * 0.5;
     }
 
     let alpha = (ray.direction.to_unit().y + 1.0) * 0.5;
