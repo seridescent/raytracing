@@ -136,11 +136,22 @@ fn ray_color(
     (1.0 - alpha) * white + alpha * blue
 }
 
+fn linear_to_gamma(linear_component: f64) -> f64 {
+    if linear_component > 0.0 {
+        linear_component.sqrt()
+    } else {
+        0.0
+    }
+}
+
 fn ppm_pixel(color: Vector3) -> String {
+    let (r, g, b) = (color.x, color.y, color.z);
+    let (r, g, b) = (linear_to_gamma(r), linear_to_gamma(g), linear_to_gamma(b));
+
     let intensity = Interval::new(0.0, 0.999);
-    let ir = (255.999 * intensity.clamp(color.x)) as u8;
-    let ig = (255.999 * intensity.clamp(color.y)) as u8;
-    let ib = (255.999 * intensity.clamp(color.z)) as u8;
+    let ir = (255.999 * intensity.clamp(r)) as u8;
+    let ig = (255.999 * intensity.clamp(g)) as u8;
+    let ib = (255.999 * intensity.clamp(b)) as u8;
 
     format!("{ir} {ig} {ib}")
 }
