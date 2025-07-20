@@ -3,7 +3,9 @@ use vector::dot;
 
 use crate::vector::Vector3;
 
+pub mod hittable;
 pub mod ray;
+pub mod sphere;
 pub mod vector;
 
 fn hit_sphere(center: Vector3, radius: f64, ray: Ray) -> f64 {
