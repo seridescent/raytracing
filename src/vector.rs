@@ -7,6 +7,12 @@ pub struct Vector3 {
     pub z: f64,
 }
 
+impl Default for Vector3 {
+    fn default() -> Self {
+        Vector3::ZERO
+    }
+}
+
 impl Vector3 {
     pub const ZERO: Self = Self {
         x: 0.,

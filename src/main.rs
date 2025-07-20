@@ -1,34 +1,11 @@
 use std::error::Error;
-use std::f64::INFINITY;
 
+use raytracing::camera::Camera;
 use raytracing::hittable::Hittable;
-use raytracing::interval::Interval;
-use raytracing::ray::Ray;
 use raytracing::sphere::Sphere;
 use raytracing::vector::Vector3;
 
-fn ray_color(ray: Ray, world: &impl Hittable) -> Vector3 {
-    if let Some(hit) = world.hit(ray, Interval::new(0.0, INFINITY)) {
-        return (hit.face_normal + Vector3::new(1.0, 1.0, 1.0)) * 0.5;
-    }
-
-    let alpha = (ray.direction.to_unit().y + 1.0) * 0.5;
-
-    let white = Vector3::new(1.0, 1.0, 1.0);
-    let blue = Vector3::new(0.5, 0.7, 1.0);
-
-    (1.0 - alpha) * white + alpha * blue
-}
-
 fn main() -> Result<(), Box<dyn Error>> {
-    let ideal_aspect_ratio = 16.0 / 9.0;
-    let image_width = 400;
-
-    let image_height = {
-        let h = (image_width as f64 / ideal_aspect_ratio) as i32;
-        if h < 1 { 1 } else { h }
-    };
-
     // World
 
     let world = {
@@ -43,49 +20,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         w
     };
 
-    // Camera
+    let camera = Camera::new(16.0 / 9.0, 400);
 
-    let viewport_height = 2.0;
-    let viewport_width = viewport_height * image_width as f64 / image_height as f64;
-
-    let focal_length = 1.0;
-    let camera_center = Vector3::ZERO;
-
-    let viewport_u = Vector3::new(viewport_width, 0.0, 0.0);
-    let viewport_v = Vector3::new(0.0, -viewport_height, 0.0);
-
-    let pixel_du = viewport_u / image_width as f64;
-    let pixel_dv = viewport_v / image_height as f64;
-
-    let viewport_upper_left =
-        camera_center - Vector3::new(0.0, 0.0, focal_length) - viewport_u / 2.0 - viewport_v / 2.0;
-    let pixel00_loc = viewport_upper_left + (pixel_du + pixel_dv) * 0.5;
-
-    // Render
-
-    println!("P3");
-    println!("{image_width} {image_height}");
-    println!("{}", 255);
-
-    for row in 0..image_height {
-        eprint!("\rScanlines remaining: {}", image_height - row);
-        for col in 0..image_width {
-            let pixel_center = pixel00_loc + (col as f64 * pixel_du) + (row as f64 * pixel_dv);
-            let ray = Ray::new(camera_center, pixel_center - camera_center);
-
-            let color = ray_color(ray, &world);
-
-            println!("{}", ppm_pixel(color))
-        }
-    }
+    camera.initialize().render(&world);
 
     Ok(())
-}
-
-fn ppm_pixel(color: Vector3) -> String {
-    let ir = (255.999 * color.x) as u8;
-    let ig = (255.999 * color.y) as u8;
-    let ib = (255.999 * color.z) as u8;
-
-    format!("{ir} {ig} {ib}")
 }
