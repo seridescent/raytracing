@@ -119,7 +119,7 @@ fn ray_color(
     }
 
     if let Some(hit) = world.hit(ray, Interval::new(0.001, f64::INFINITY)) {
-        let direction = Vector3::random_on_hemisphere(rng, hit.face_normal);
+        let direction = hit.face_normal + Vector3::random_unit(rng);
         return (ray_color(
             rng,
             Ray::new(hit.p, direction),
