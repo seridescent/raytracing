@@ -1,4 +1,6 @@
-use rand::Rng;
+use std::{cell::RefCell, rc::Rc};
+
+use rand::{Rng, rngs::StdRng};
 
 use crate::{hittable::Hittable, interval::Interval, ray::Ray, vector::Vector3};
 
@@ -70,18 +72,18 @@ impl Camera {
 }
 
 impl InitializedCamera {
-    pub fn render(&self, rng: &mut impl Rng, world: &impl Hittable) {
+    pub fn render(&self, rng: Rc<RefCell<StdRng>>, world: &impl Hittable) {
         println!("P3");
         println!("{} {}", self.image_width, self.image_height);
         println!("{}", 255);
 
         for row in 0..self.image_height {
-            eprint!("\rScanlines remaining: {}", self.image_height - row);
+            eprint!("\rScanlines remaining: {}   ", self.image_height - row);
             for col in 0..self.image_width {
                 let color = (0..self.samples_per_pixel)
-                    .map(|_| sample_square(rng))
+                    .map(|_| sample_square(&mut *rng.borrow_mut()))
                     .map(|offset| self.get_ray(col, row, offset))
-                    .map(|ray| ray_color(ray, world))
+                    .map(|ray| ray_color(&mut *rng.borrow_mut(), ray, world))
                     .fold(Vector3::ZERO, |acc, e| acc + e);
 
                 println!("{}", ppm_pixel(color * self.pixel_samples_scale))
@@ -99,16 +101,13 @@ impl InitializedCamera {
 }
 
 fn sample_square(rng: &mut impl Rng) -> Vector3 {
-    Vector3::new(
-        rng.random_range(0.0..1.0) - 0.5,
-        rng.random_range(0.0..1.0) - 0.5,
-        0.0,
-    )
+    Vector3::new(rng.random::<f64>() - 0.5, rng.random::<f64>() - 0.5, 0.0)
 }
 
-fn ray_color(ray: Ray, world: &impl Hittable) -> Vector3 {
+fn ray_color(rng: &mut impl Rng, ray: Ray, world: &impl Hittable) -> Vector3 {
     if let Some(hit) = world.hit(ray, Interval::new(0.0, f64::INFINITY)) {
-        return (hit.face_normal + Vector3::new(1.0, 1.0, 1.0)) * 0.5;
+        let direction = Vector3::random_on_hemisphere(rng, hit.face_normal);
+        return (ray_color(rng, Ray::new(hit.p, direction), world)) * 0.5;
     }
 
     let alpha = (ray.direction.to_unit().y + 1.0) * 0.5;

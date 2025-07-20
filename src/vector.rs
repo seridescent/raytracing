@@ -1,5 +1,9 @@
 use std::ops;
 
+use rand::Rng;
+
+use crate::interval::Interval;
+
 #[derive(Copy, Clone, Debug)]
 pub struct Vector3 {
     pub x: f64,
@@ -34,6 +38,55 @@ impl Vector3 {
 
     pub fn to_unit(self) -> Self {
         self / self.length()
+    }
+
+    pub fn random_range(rng: &mut impl Rng, range: Interval) -> Self {
+        Self {
+            x: rng.random_range(range.min..range.max),
+            y: rng.random_range(range.min..range.max),
+            z: rng.random_range(range.min..range.max),
+        }
+    }
+
+    pub fn random(rng: &mut impl Rng) -> Self {
+        Self {
+            x: rng.random::<f64>(),
+            y: rng.random::<f64>(),
+            z: rng.random::<f64>(),
+        }
+    }
+
+    pub fn random_unit(rng: &mut impl Rng) -> Self {
+        loop {
+            let candidate = Self::random_range(rng, Interval::new(-1.0, 1.0));
+            let lensq = candidate.length_squared();
+
+            // there exist candidate vectors s.t. candidate.length_squared() == 0.0
+            // because tiny_float ^ 2 can underflow to 0.0.
+            // we have to reject such candidates, or else we will produce "unit" vectors [inf inf inf].
+            //
+            // the book rejects additional candidate vectors with extremely small values of lensq,
+            // and the book uses 1e-160 for this value. however, it seems to me that even
+            // subnormal positive lensq values (e.g. `1e-320f64`) produce valid unit vectors.
+            //
+            // of course, some small samples working out on my macbook does not mean that
+            // it's a good idea to widen the range to 0 < lensq <= 1.0, as i'm not confident in a wider
+            // range's correctness and this codepath's relevance probably pales in comparison to lighting
+            // computations anyway. maybe something to explore another time though.
+            //
+            if 1e-160 < lensq && lensq <= 1.0 {
+                return candidate / lensq.sqrt();
+            }
+        }
+    }
+
+    pub fn random_on_hemisphere(rng: &mut impl Rng, normal: Self) -> Self {
+        let on_unit_sphere = Self::random_unit(rng);
+        if dot(on_unit_sphere, normal) > 0.0 {
+            on_unit_sphere
+        } else {
+            -on_unit_sphere
+        }
     }
 }
 
