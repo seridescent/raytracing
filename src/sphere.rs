@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 use crate::{
-    hittable::{Hit, Hittable},
+    hittable::{Hit, Hittable, compute_face_normal},
     vector::{Vector3, dot},
 };
 
@@ -59,8 +59,14 @@ impl Hittable for Sphere {
         };
 
         let p = ray.at(t);
-        let normal = (p - self.center) / self.radius;
+        let outward_normal = (p - self.center) / self.radius;
+        let (front_face, face_normal) = compute_face_normal(ray, outward_normal);
 
-        Some(Hit { t, p, normal })
+        Some(Hit {
+            t,
+            p,
+            face_normal,
+            front_face,
+        })
     }
 }
