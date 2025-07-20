@@ -1,11 +1,25 @@
 use ray::Ray;
+use vector::dot;
 
 use crate::vector::Vector3;
 
 pub mod ray;
 pub mod vector;
 
+fn is_sphere_hit(center: Vector3, radius: f64, ray: Ray) -> bool {
+    let oc = center - ray.origin;
+    let a = dot(ray.direction, ray.direction);
+    let b = -2.0 * dot(ray.direction, oc);
+    let c = dot(oc, oc) - radius.powi(2);
+
+    b.powi(2) - 4.0 * a * c >= 0.0
+}
+
 fn ray_color(ray: Ray) -> Vector3 {
+    if is_sphere_hit(Vector3::new(0.0, 0.0, -1.0), 0.5, ray) {
+        return Vector3::new(1.0, 0.0, 0.0);
+    }
+
     let alpha = (ray.direction.to_unit().y + 1.0) * 0.5;
 
     let white = Vector3::new(1.0, 1.0, 1.0);
