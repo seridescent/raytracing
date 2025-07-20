@@ -6,18 +6,29 @@ use crate::vector::Vector3;
 pub mod ray;
 pub mod vector;
 
-fn is_sphere_hit(center: Vector3, radius: f64, ray: Ray) -> bool {
+fn hit_sphere(center: Vector3, radius: f64, ray: Ray) -> f64 {
     let oc = center - ray.origin;
     let a = dot(ray.direction, ray.direction);
     let b = -2.0 * dot(ray.direction, oc);
     let c = dot(oc, oc) - radius.powi(2);
 
-    b.powi(2) - 4.0 * a * c >= 0.0
+    let discriminant = b.powi(2) - 4.0 * a * c;
+
+    if discriminant < 0.0 {
+        -1.0
+    } else {
+        (-b - discriminant.sqrt()) / (2.0 * a)
+    }
 }
 
 fn ray_color(ray: Ray) -> Vector3 {
-    if is_sphere_hit(Vector3::new(0.0, 0.0, -1.0), 0.5, ray) {
-        return Vector3::new(1.0, 0.0, 0.0);
+    let center = Vector3::new(0.0, 0.0, -1.0);
+    let radius = 0.5;
+    let t = hit_sphere(center, radius, ray);
+
+    if t > 0.0 {
+        let norm = (ray.at(t) - center) / radius;
+        return 0.5 * Vector3::new(norm.x + 1.0, norm.y + 1.0, norm.z + 1.0);
     }
 
     let alpha = (ray.direction.to_unit().y + 1.0) * 0.5;
