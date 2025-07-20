@@ -2,6 +2,8 @@ use thiserror::Error;
 
 use crate::{
     hittable::{Hit, Hittable, compute_face_normal},
+    interval::Interval,
+    ray::Ray,
     vector::{Vector3, dot},
 };
 
@@ -28,7 +30,7 @@ impl Sphere {
 }
 
 impl Hittable for Sphere {
-    fn hit(self, ray: crate::ray::Ray, t_min: f64, t_max: f64) -> Option<Hit> {
+    fn hit(&self, ray: Ray, ray_t: Interval) -> Option<Hit> {
         let oc = self.center - ray.origin;
         let a = ray.direction.length_squared();
         let h = dot(ray.direction, oc);
@@ -42,15 +44,13 @@ impl Hittable for Sphere {
         let t = {
             let sqrtd = discriminant.sqrt();
 
-            let is_in_range = |t| !(t < t_min || t >= t_max);
-
             let root = (h - sqrtd) / a;
 
-            if is_in_range(root) {
+            if ray_t.surrounds(root) {
                 root
             } else {
                 let root = (h + sqrtd) / a;
-                if !is_in_range(root) {
+                if !ray_t.surrounds(root) {
                     return None;
                 }
 

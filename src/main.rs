@@ -1,36 +1,15 @@
-use ray::Ray;
-use vector::dot;
+use std::error::Error;
+use std::f64::INFINITY;
 
-use crate::vector::Vector3;
+use raytracing::hittable::Hittable;
+use raytracing::interval::Interval;
+use raytracing::ray::Ray;
+use raytracing::sphere::Sphere;
+use raytracing::vector::Vector3;
 
-pub mod hittable;
-pub mod ray;
-pub mod sphere;
-pub mod vector;
-
-fn hit_sphere(center: Vector3, radius: f64, ray: Ray) -> f64 {
-    let oc = center - ray.origin;
-    let a = dot(ray.direction, ray.direction);
-    let b = -2.0 * dot(ray.direction, oc);
-    let c = dot(oc, oc) - radius.powi(2);
-
-    let discriminant = b.powi(2) - 4.0 * a * c;
-
-    if discriminant < 0.0 {
-        -1.0
-    } else {
-        (-b - discriminant.sqrt()) / (2.0 * a)
-    }
-}
-
-fn ray_color(ray: Ray) -> Vector3 {
-    let center = Vector3::new(0.0, 0.0, -1.0);
-    let radius = 0.5;
-    let t = hit_sphere(center, radius, ray);
-
-    if t > 0.0 {
-        let norm = (ray.at(t) - center) / radius;
-        return 0.5 * Vector3::new(norm.x + 1.0, norm.y + 1.0, norm.z + 1.0);
+fn ray_color(ray: Ray, world: &impl Hittable) -> Vector3 {
+    if let Some(hit) = world.hit(ray, Interval::new(0.0, INFINITY)) {
+        return (hit.face_normal + Vector3::new(1.0, 1.0, 1.0)) * 0.5;
     }
 
     let alpha = (ray.direction.to_unit().y + 1.0) * 0.5;
@@ -41,7 +20,7 @@ fn ray_color(ray: Ray) -> Vector3 {
     (1.0 - alpha) * white + alpha * blue
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
     let ideal_aspect_ratio = 16.0 / 9.0;
     let image_width = 400;
 
@@ -50,13 +29,27 @@ fn main() {
         if h < 1 { 1 } else { h }
     };
 
+    // World
+
+    let world = {
+        let mut w: Vec<Box<dyn Hittable>> = Vec::new();
+
+        w.push(Box::new(Sphere::new(Vector3::new(0.0, 0.0, -1.0), 0.5)?));
+        w.push(Box::new(Sphere::new(
+            Vector3::new(0.0, -100.5, -1.0),
+            100.0,
+        )?));
+
+        w
+    };
+
     // Camera
 
     let viewport_height = 2.0;
     let viewport_width = viewport_height * image_width as f64 / image_height as f64;
 
     let focal_length = 1.0;
-    let camera_center = Vector3::zero();
+    let camera_center = Vector3::ZERO;
 
     let viewport_u = Vector3::new(viewport_width, 0.0, 0.0);
     let viewport_v = Vector3::new(0.0, -viewport_height, 0.0);
@@ -80,11 +73,13 @@ fn main() {
             let pixel_center = pixel00_loc + (col as f64 * pixel_du) + (row as f64 * pixel_dv);
             let ray = Ray::new(camera_center, pixel_center - camera_center);
 
-            let color = ray_color(ray);
+            let color = ray_color(ray, &world);
 
             println!("{}", ppm_pixel(color))
         }
     }
+
+    Ok(())
 }
 
 fn ppm_pixel(color: Vector3) -> String {

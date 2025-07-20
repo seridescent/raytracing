@@ -1,4 +1,5 @@
 use crate::{
+    interval::Interval,
     ray::Ray,
     vector::{Vector3, dot},
 };
@@ -14,7 +15,28 @@ pub struct Hit {
 }
 
 pub trait Hittable {
-    fn hit(self, ray: Ray, t_min: f64, t_max: f64) -> Option<Hit>;
+    fn hit(&self, ray: Ray, ray_t: Interval) -> Option<Hit>;
+}
+
+impl Hittable for Vec<Box<dyn Hittable>> {
+    fn hit(&self, ray: Ray, ray_t: Interval) -> Option<Hit> {
+        self.iter().fold(None, |acc, e| {
+            let maybe_hit = e.hit(ray, ray_t);
+
+            match (acc, maybe_hit) {
+                (None, None) => None,
+                (None, Some(_)) => maybe_hit,
+                (Some(_), None) => acc,
+                (Some(best_hit), Some(hit)) => {
+                    if hit.t < best_hit.t {
+                        Some(hit)
+                    } else {
+                        acc
+                    }
+                }
+            }
+        })
+    }
 }
 
 pub fn compute_face_normal(ray: Ray, outward_normal: Vector3) -> (bool, Vector3) {
