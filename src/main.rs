@@ -20,7 +20,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         w
     };
 
-    let camera = Camera::new(16.0 / 9.0, 400);
+    let camera = Camera {
+        aspect_ratio: 16.0 / 9.0,
+        image_width: 400,
+        samples_per_pixel: 100,
+    };
 
     camera.initialize().render(&world);
 
