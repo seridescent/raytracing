@@ -1,10 +1,47 @@
+use ray::Ray;
+
 use crate::vector::Vector3;
 
+pub mod ray;
 pub mod vector;
 
+fn ray_color(ray: Ray) -> Vector3 {
+    let alpha = (ray.direction.to_unit().y + 1.0) * 0.5;
+
+    let white = Vector3::new(1.0, 1.0, 1.0);
+    let blue = Vector3::new(0.5, 0.7, 1.0);
+
+    (1.0 - alpha) * white + alpha * blue
+}
+
 fn main() {
-    let image_width = 256;
-    let image_height = 256;
+    let ideal_aspect_ratio = 16.0 / 9.0;
+    let image_width = 400;
+
+    let image_height = {
+        let h = (image_width as f64 / ideal_aspect_ratio) as i32;
+        if h < 1 { 1 } else { h }
+    };
+
+    // Camera
+
+    let viewport_height = 2.0;
+    let viewport_width = viewport_height * image_width as f64 / image_height as f64;
+
+    let focal_length = 1.0;
+    let camera_center = Vector3::zero();
+
+    let viewport_u = Vector3::new(viewport_width, 0.0, 0.0);
+    let viewport_v = Vector3::new(0.0, -viewport_height, 0.0);
+
+    let pixel_du = viewport_u / image_width as f64;
+    let pixel_dv = viewport_v / image_height as f64;
+
+    let viewport_upper_left =
+        camera_center - Vector3::new(0.0, 0.0, focal_length) - viewport_u / 2.0 - viewport_v / 2.0;
+    let pixel00_loc = viewport_upper_left + (pixel_du + pixel_dv) * 0.5;
+
+    // Render
 
     println!("P3");
     println!("{image_width} {image_height}");
@@ -13,11 +50,10 @@ fn main() {
     for row in 0..image_height {
         eprint!("\rScanlines remaining: {}", image_height - row);
         for col in 0..image_width {
-            let color = Vector3 {
-                x: col as f64 / f64::from(image_width - 1),
-                y: row as f64 / f64::from(image_height - 1),
-                z: 0 as f64,
-            };
+            let pixel_center = pixel00_loc + (col as f64 * pixel_du) + (row as f64 * pixel_dv);
+            let ray = Ray::new(camera_center, pixel_center - camera_center);
+
+            let color = ray_color(ray);
 
             println!("{}", ppm_pixel(color))
         }

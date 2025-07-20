@@ -8,6 +8,18 @@ pub struct Vector3 {
 }
 
 impl Vector3 {
+    pub fn zero() -> Self {
+        Self {
+            x: 0.,
+            y: 0.,
+            z: 0.,
+        }
+    }
+
+    pub fn new(x: f64, y: f64, z: f64) -> Self {
+        Self { x, y, z }
+    }
+
     pub fn length(&self) -> f64 {
         self.length_squared().sqrt()
     }
@@ -62,6 +74,14 @@ impl ops::Mul<f64> for Vector3 {
             y: self.y * rhs,
             z: self.z * rhs,
         }
+    }
+}
+
+impl ops::Mul<Vector3> for f64 {
+    type Output = Vector3;
+
+    fn mul(self, rhs: Vector3) -> Self::Output {
+        rhs * self
     }
 }
 
