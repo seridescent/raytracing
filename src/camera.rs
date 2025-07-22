@@ -1,6 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
-
-use rand::{Rng, rngs::StdRng};
+use rand::random;
 
 use crate::{hittable::Hittable, interval::Interval, ray::Ray, vector::Vector3};
 
@@ -76,7 +74,7 @@ impl Camera {
 }
 
 impl InitializedCamera {
-    pub fn render(&self, rng: Rc<RefCell<StdRng>>, world: &impl Hittable) {
+    pub fn render(&self, world: &impl Hittable) {
         println!("P3");
         println!("{} {}", self.image_width, self.image_height);
         println!("{}", 255);
@@ -85,9 +83,9 @@ impl InitializedCamera {
             eprint!("\rScanlines remaining: {}   ", self.image_height - row);
             for col in 0..self.image_width {
                 let color = (0..self.samples_per_pixel)
-                    .map(|_| sample_square(&mut *rng.borrow_mut()))
+                    .map(|_| sample_square())
                     .map(|offset| self.get_ray(col, row, offset))
-                    .map(|ray| ray_color(&mut *rng.borrow_mut(), ray, world, self.max_depth))
+                    .map(|ray| ray_color(ray, world, self.max_depth))
                     .fold(Vector3::ZERO, |acc, e| acc + e);
 
                 println!("{}", ppm_pixel(color * self.pixel_samples_scale))
@@ -104,28 +102,18 @@ impl InitializedCamera {
     }
 }
 
-fn sample_square(rng: &mut impl Rng) -> Vector3 {
-    Vector3::new(rng.random::<f64>() - 0.5, rng.random::<f64>() - 0.5, 0.0)
+fn sample_square() -> Vector3 {
+    Vector3::new(random::<f64>() - 0.5, random::<f64>() - 0.5, 0.0)
 }
 
-fn ray_color(
-    rng: &mut impl Rng,
-    ray: Ray,
-    world: &impl Hittable,
-    remaining_ray_bounces: u32,
-) -> Vector3 {
+fn ray_color(ray: Ray, world: &impl Hittable, remaining_ray_bounces: u32) -> Vector3 {
     if remaining_ray_bounces <= 0 {
         return Vector3::ZERO;
     }
 
     if let Some(hit) = world.hit(ray, Interval::new(0.001, f64::INFINITY)) {
-        let direction = hit.face_normal + Vector3::random_unit(rng);
-        return (ray_color(
-            rng,
-            Ray::new(hit.p, direction),
-            world,
-            remaining_ray_bounces - 1,
-        )) * 0.5;
+        let direction = hit.face_normal + Vector3::random_unit();
+        return (ray_color(Ray::new(hit.p, direction), world, remaining_ray_bounces - 1)) * 0.5;
     }
 
     let alpha = (ray.direction.to_unit().y + 1.0) * 0.5;

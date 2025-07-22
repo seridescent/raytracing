@@ -1,6 +1,6 @@
 use std::ops;
 
-use rand::Rng;
+use rand::{random, random_range};
 
 use crate::interval::Interval;
 
@@ -40,25 +40,25 @@ impl Vector3 {
         self / self.length()
     }
 
-    pub fn random_range(rng: &mut impl Rng, range: Interval) -> Self {
+    pub fn random_range(range: Interval) -> Self {
         Self {
-            x: rng.random_range(range.min..range.max),
-            y: rng.random_range(range.min..range.max),
-            z: rng.random_range(range.min..range.max),
+            x: random_range(range.min..range.max),
+            y: random_range(range.min..range.max),
+            z: random_range(range.min..range.max),
         }
     }
 
-    pub fn random(rng: &mut impl Rng) -> Self {
+    pub fn random() -> Self {
         Self {
-            x: rng.random::<f64>(),
-            y: rng.random::<f64>(),
-            z: rng.random::<f64>(),
+            x: random::<f64>(),
+            y: random::<f64>(),
+            z: random::<f64>(),
         }
     }
 
-    pub fn random_unit(rng: &mut impl Rng) -> Self {
+    pub fn random_unit() -> Self {
         loop {
-            let candidate = Self::random_range(rng, Interval::new(-1.0, 1.0));
+            let candidate = Self::random_range(Interval::new(-1.0, 1.0));
             let lensq = candidate.length_squared();
 
             // there exist candidate vectors s.t. candidate.length_squared() == 0.0
@@ -80,8 +80,8 @@ impl Vector3 {
         }
     }
 
-    pub fn random_on_hemisphere(rng: &mut impl Rng, normal: Self) -> Self {
-        let on_unit_sphere = Self::random_unit(rng);
+    pub fn random_on_hemisphere(normal: Self) -> Self {
+        let on_unit_sphere = Self::random_unit();
         if dot(on_unit_sphere, normal) > 0.0 {
             on_unit_sphere
         } else {

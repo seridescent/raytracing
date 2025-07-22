@@ -1,10 +1,6 @@
-use std::cell::RefCell;
 use std::error::Error;
-use std::rc::Rc;
 use std::time::Instant;
 
-use rand::SeedableRng;
-use rand::rngs::StdRng;
 use raytracing::camera::Camera;
 use raytracing::hittable::Hittable;
 use raytracing::sphere::Sphere;
@@ -27,9 +23,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         max_depth: 50,
     };
 
-    let rng = Rc::new(RefCell::new(StdRng::seed_from_u64(12)));
-
-    camera.initialize().render(rng, &world);
+    camera.initialize().render(&world);
 
     eprintln!(
         "\n\nDone! Ran for {:#?}",
