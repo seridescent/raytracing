@@ -1,10 +1,13 @@
+use std::rc::Rc;
+
 use crate::{
     interval::Interval,
+    material::Material,
     ray::Ray,
     vector::{Vector3, dot},
 };
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone)]
 pub struct Hit {
     pub t: f64,
     pub p: Vector3,
@@ -12,6 +15,8 @@ pub struct Hit {
 
     /// whether the ray hit the "outward" face of this surface
     pub front_face: bool,
+
+    pub material: Rc<dyn Material>,
 }
 
 pub trait Hittable {
@@ -25,14 +30,10 @@ impl Hittable for Vec<Box<dyn Hittable>> {
 
             match (acc, maybe_hit) {
                 (None, None) => None,
-                (None, Some(_)) => maybe_hit,
-                (Some(_), None) => acc,
+                (None, Some(hit)) => Some(hit),
+                (Some(best_hit), None) => Some(best_hit),
                 (Some(best_hit), Some(hit)) => {
-                    if hit.t < best_hit.t {
-                        Some(hit)
-                    } else {
-                        acc
-                    }
+                    Some(if hit.t < best_hit.t { hit } else { best_hit })
                 }
             }
         })

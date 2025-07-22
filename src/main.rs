@@ -1,8 +1,10 @@
 use std::error::Error;
+use std::rc::Rc;
 use std::time::Instant;
 
 use raytracing::camera::Camera;
 use raytracing::hittable::Hittable;
+use raytracing::material::{Lambertian, Metal};
 use raytracing::sphere::Sphere;
 use raytracing::vector::Vector3;
 
@@ -11,9 +13,32 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // World
 
+    let material_ground = Rc::new(Lambertian::new(Vector3::new(0.8, 0.8, 0.0)));
+    let material_center = Rc::new(Lambertian::new(Vector3::new(0.1, 0.2, 0.5)));
+    let material_left = Rc::new(Metal::new(Vector3::new(0.8, 0.8, 0.8)));
+    let material_right = Rc::new(Metal::new(Vector3::new(0.8, 0.6, 0.2)));
+
     let world: Vec<Box<dyn Hittable>> = vec![
-        Box::new(Sphere::new(Vector3::new(0.0, 0.0, -1.0), 0.5)?),
-        Box::new(Sphere::new(Vector3::new(0.0, -100.5, -1.0), 100.0)?),
+        Box::new(Sphere::new(
+            Vector3::new(0.0, -100.5, -1.0),
+            100.0,
+            material_ground,
+        )?),
+        Box::new(Sphere::new(
+            Vector3::new(0.0, 0.0, -1.2),
+            0.5,
+            material_center,
+        )?),
+        Box::new(Sphere::new(
+            Vector3::new(-1.0, 0.0, -1.0),
+            0.5,
+            material_left,
+        )?),
+        Box::new(Sphere::new(
+            Vector3::new(1.0, 0.0, -1.0),
+            0.5,
+            material_right,
+        )?),
     ];
 
     let camera = Camera {

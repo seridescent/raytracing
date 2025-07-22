@@ -1,16 +1,20 @@
+use std::rc::Rc;
+
 use thiserror::Error;
 
 use crate::{
     hittable::{Hit, Hittable, compute_face_normal},
     interval::Interval,
+    material::Material,
     ray::Ray,
     vector::{Vector3, dot},
 };
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone)]
 pub struct Sphere {
     center: Vector3,
     radius: f64,
+    material: Rc<dyn Material>,
 }
 
 #[derive(Error, Debug)]
@@ -20,11 +24,19 @@ pub enum ConstructSphereError {
 }
 
 impl Sphere {
-    pub fn new(center: Vector3, radius: f64) -> Result<Self, ConstructSphereError> {
+    pub fn new(
+        center: Vector3,
+        radius: f64,
+        material: Rc<dyn Material>,
+    ) -> Result<Self, ConstructSphereError> {
         if radius < 0.0 {
             Err(ConstructSphereError::NonnegativeRadius(radius))
         } else {
-            Ok(Self { center, radius })
+            Ok(Self {
+                center,
+                radius,
+                material,
+            })
         }
     }
 }
@@ -62,11 +74,14 @@ impl Hittable for Sphere {
         let outward_normal = (p - self.center) / self.radius;
         let (front_face, face_normal) = compute_face_normal(ray, outward_normal);
 
+        let material = self.material.clone();
+
         Some(Hit {
             t,
             p,
             face_normal,
             front_face,
+            material,
         })
     }
 }

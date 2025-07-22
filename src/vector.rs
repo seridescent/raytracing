@@ -88,6 +88,10 @@ impl Vector3 {
             -on_unit_sphere
         }
     }
+
+    pub fn is_near_zero(&self) -> bool {
+        self.x.abs() < 1e-8 && self.y.abs() < 1e-8 && self.z.abs() < 1e-8
+    }
 }
 
 impl ops::Add for Vector3 {
@@ -211,4 +215,8 @@ impl ops::Neg for Vector3 {
 
 pub fn dot(lhs: Vector3, rhs: Vector3) -> f64 {
     lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z
+}
+
+pub fn reflect(v: Vector3, n: Vector3) -> Vector3 {
+    v - 2.0 * dot(v, n) * n
 }
