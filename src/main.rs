@@ -1,10 +1,11 @@
 use std::error::Error;
+use std::f64::consts::PI;
 use std::rc::Rc;
 use std::time::Instant;
 
 use raytracing::camera::Camera;
 use raytracing::hittable::Hittable;
-use raytracing::material::{Dielectric, Lambertian, Metal};
+use raytracing::material::Lambertian;
 use raytracing::sphere::Sphere;
 use raytracing::vector::Vector3;
 
@@ -13,37 +14,17 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // World
 
-    let material_ground = Rc::new(Lambertian::new(Vector3::new(0.8, 0.8, 0.0)));
-    let material_center = Rc::new(Lambertian::new(Vector3::new(0.1, 0.2, 0.5)));
-    let material_left = Rc::new(Dielectric::new(1.5));
-    let material_bubble = Rc::new(Dielectric::new(1.0 / 1.5));
-    let material_right = Rc::new(Metal::new(Vector3::new(0.8, 0.6, 0.2), 1.0));
-
+    let radius = (PI / 4.0).cos();
     let world: Vec<Box<dyn Hittable>> = vec![
         Box::new(Sphere::new(
-            Vector3::new(0.0, -100.5, -1.0),
-            100.0,
-            material_ground,
+            Vector3::new(-radius, 0.0, -1.0),
+            radius,
+            Rc::new(Lambertian::new(Vector3::new(0.0, 0.0, 1.0))),
         )?),
         Box::new(Sphere::new(
-            Vector3::new(0.0, 0.0, -1.2),
-            0.5,
-            material_center,
-        )?),
-        Box::new(Sphere::new(
-            Vector3::new(-1.0, 0.0, -1.0),
-            0.5,
-            material_left,
-        )?),
-        Box::new(Sphere::new(
-            Vector3::new(-1.0, 0.0, -1.0),
-            0.4,
-            material_bubble,
-        )?),
-        Box::new(Sphere::new(
-            Vector3::new(1.0, 0.0, -1.0),
-            0.5,
-            material_right,
+            Vector3::new(radius, 0.0, -1.0),
+            radius,
+            Rc::new(Lambertian::new(Vector3::new(1.0, 0.0, 0.0))),
         )?),
     ];
 
@@ -52,6 +33,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         image_width: 400,
         samples_per_pixel: 100,
         max_depth: 50,
+
+        ..Default::default()
     };
 
     camera.initialize().render(&world);

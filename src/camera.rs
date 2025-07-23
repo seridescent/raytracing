@@ -7,6 +7,7 @@ pub struct Camera {
     pub image_width: u32,
     pub samples_per_pixel: u32,
     pub max_depth: u32,
+    pub vfov: f64,
 }
 
 pub struct InitializedCamera {
@@ -30,6 +31,7 @@ impl Default for Camera {
             image_width: 100,
             samples_per_pixel: 10,
             max_depth: 10,
+            vfov: 90.0,
         }
     }
 }
@@ -43,10 +45,14 @@ impl Camera {
 
         let pixel_samples_scale = 1.0 / self.samples_per_pixel as f64;
 
-        let viewport_height = 2.0;
+        let focal_length = 1.0;
+
+        let theta = self.vfov.to_radians();
+        let h = (theta / 2.0).tan();
+        let viewport_height = 2.0 * h * focal_length;
+
         let viewport_width = viewport_height * self.image_width as f64 / image_height as f64;
 
-        let focal_length = 1.0;
         let center = Vector3::ZERO;
 
         let viewport_u = Vector3::new(viewport_width, 0.0, 0.0);
