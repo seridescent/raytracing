@@ -87,15 +87,20 @@ impl Dielectric {
 
 impl Material for Dielectric {
     fn scatter(&self, ray: Ray, hit: Hit) -> Option<Scatter> {
-        let r_out = refract(
-            ray.direction.to_unit(),
-            hit.face_normal,
-            if hit.front_face {
-                1.0 / self.refraction_index
-            } else {
-                self.refraction_index
-            },
-        );
+        let r_in = ray.direction.to_unit();
+        let eta_in_over_eta_out = if hit.front_face {
+            1.0 / self.refraction_index
+        } else {
+            self.refraction_index
+        };
+
+        let cos_theta = dot(r_in, hit.face_normal).clamp(-1.0, 1.0);
+        let sin_theta = (1.0 - cos_theta.powi(2)).sqrt();
+        let r_out = if eta_in_over_eta_out * sin_theta > 1.0 {
+            reflect(r_in, hit.face_normal)
+        } else {
+            refract(r_in, hit.face_normal, eta_in_over_eta_out)
+        };
 
         Some(Scatter {
             ray: Ray::new(hit.p, r_out),
