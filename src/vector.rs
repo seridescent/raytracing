@@ -220,3 +220,11 @@ pub fn dot(lhs: Vector3, rhs: Vector3) -> f64 {
 pub fn reflect(v: Vector3, n: Vector3) -> Vector3 {
     v - 2.0 * dot(v, n) * n
 }
+
+pub fn refract(r_in: Vector3, n: Vector3, eta_in_over_eta_out: f64) -> Vector3 {
+    let cos_theta = dot(-r_in, n).clamp(-1.0, 1.0);
+    let r_out_perp = eta_in_over_eta_out * (r_in + cos_theta * n);
+    let r_out_par = -((1.0 - r_out_perp.length_squared()).abs()).sqrt() * n;
+
+    r_out_perp + r_out_par
+}

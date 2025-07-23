@@ -4,7 +4,7 @@ use std::time::Instant;
 
 use raytracing::camera::Camera;
 use raytracing::hittable::Hittable;
-use raytracing::material::{Lambertian, Metal};
+use raytracing::material::{Dielectric, Lambertian, Metal};
 use raytracing::sphere::Sphere;
 use raytracing::vector::Vector3;
 
@@ -15,7 +15,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let material_ground = Rc::new(Lambertian::new(Vector3::new(0.8, 0.8, 0.0)));
     let material_center = Rc::new(Lambertian::new(Vector3::new(0.1, 0.2, 0.5)));
-    let material_left = Rc::new(Metal::new(Vector3::new(0.8, 0.8, 0.8), 0.3));
+    let material_left = Rc::new(Dielectric::new(1.5));
     let material_right = Rc::new(Metal::new(Vector3::new(0.8, 0.6, 0.2), 1.0));
 
     let world: Vec<Box<dyn Hittable>> = vec![

@@ -1,7 +1,7 @@
 use crate::{
     hittable::Hit,
     ray::Ray,
-    vector::{Vector3, dot, reflect},
+    vector::{Vector3, dot, reflect, refract},
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -69,5 +69,37 @@ impl Material for Metal {
         } else {
             None
         }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct Dielectric {
+    /// aka eta_out, "out" for the material that the refracted ray
+    /// enters as it "leaves" the refracting boundary
+    refraction_index: f64,
+}
+
+impl Dielectric {
+    pub fn new(refraction_index: f64) -> Self {
+        Self { refraction_index }
+    }
+}
+
+impl Material for Dielectric {
+    fn scatter(&self, ray: Ray, hit: Hit) -> Option<Scatter> {
+        let r_out = refract(
+            ray.direction.to_unit(),
+            hit.face_normal,
+            if hit.front_face {
+                1.0 / self.refraction_index
+            } else {
+                self.refraction_index
+            },
+        );
+
+        Some(Scatter {
+            ray: Ray::new(hit.p, r_out),
+            attenuation: Vector3::new(1.0, 1.0, 1.0),
+        })
     }
 }
