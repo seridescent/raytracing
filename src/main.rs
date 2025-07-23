@@ -52,9 +52,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         image_width: 400,
         samples_per_pixel: 100,
         max_depth: 50,
+
         look_from: Vector3::new(-2.0, 2.0, 1.0),
         look_at: Vector3::new(0.0, 0.0, -1.0),
         v_fov: 20.0,
+
+        defocus_angle: 10.0,
+        focus_dist: 3.4,
 
         ..Default::default()
     };

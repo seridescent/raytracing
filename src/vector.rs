@@ -80,6 +80,20 @@ impl Vector3 {
         }
     }
 
+    pub fn random_in_unit_disk() -> Self {
+        loop {
+            let candidate = Self {
+                x: random_range(-1.0..1.0),
+                y: random_range(-1.0..1.0),
+                z: 0.0,
+            };
+
+            if candidate.length_squared() < 1.0 {
+                return candidate;
+            }
+        }
+    }
+
     pub fn random_on_hemisphere(normal: Self) -> Self {
         let on_unit_sphere = Self::random_unit();
         if dot(on_unit_sphere, normal) > 0.0 {

@@ -12,16 +12,21 @@ pub struct Camera {
     pub image_width: u32,
     pub samples_per_pixel: u32,
     pub max_depth: u32,
+
     pub v_fov: f64,
     pub look_from: Vector3,
     pub look_at: Vector3,
     pub v_up: Vector3,
+
+    pub defocus_angle: f64,
+    pub focus_dist: f64,
 }
 
 pub struct InitializedCamera {
     image_width: u32,
     samples_per_pixel: u32,
     max_depth: u32,
+    defocus_angle: f64,
 
     image_height: u32,
     pixel_samples_scale: f64,
@@ -29,6 +34,8 @@ pub struct InitializedCamera {
     pixel00_loc: Vector3,
     pixel_du: Vector3,
     pixel_dv: Vector3,
+    defocus_disk_u: Vector3,
+    defocus_disk_v: Vector3,
 }
 
 impl Default for Camera {
@@ -42,6 +49,8 @@ impl Default for Camera {
             look_from: Vector3::ZERO,
             look_at: Vector3::new(0.0, 0.0, -1.0),
             v_up: Vector3::new(0.0, 1.0, 0.0),
+            defocus_angle: 0.0,
+            focus_dist: 10.0,
         }
     }
 }
@@ -57,11 +66,9 @@ impl Camera {
 
         let center = self.look_from;
 
-        let focal_length = (self.look_from - self.look_at).length();
-
         let theta = self.v_fov.to_radians();
         let h = (theta / 2.0).tan();
-        let viewport_height = 2.0 * h * focal_length;
+        let viewport_height = 2.0 * h * self.focus_dist;
 
         let viewport_width = viewport_height * self.image_width as f64 / image_height as f64;
 
@@ -75,19 +82,27 @@ impl Camera {
         let pixel_du = viewport_u / self.image_width as f64;
         let pixel_dv = viewport_v / image_height as f64;
 
-        let viewport_upper_left = center - (focal_length * w) - viewport_u / 2.0 - viewport_v / 2.0;
+        let viewport_upper_left =
+            center - (self.focus_dist * w) - viewport_u / 2.0 - viewport_v / 2.0;
         let pixel00_loc = viewport_upper_left + (pixel_du + pixel_dv) * 0.5;
+
+        let defocus_radius = self.focus_dist * (self.defocus_angle / 2.0).to_radians().tan();
+        let defocus_disk_u = u * defocus_radius;
+        let defocus_disk_v = v * defocus_radius;
 
         InitializedCamera {
             image_width: self.image_width,
             samples_per_pixel: self.samples_per_pixel,
             max_depth: self.max_depth,
+            defocus_angle: self.defocus_angle,
             image_height,
             center,
             pixel00_loc,
             pixel_du,
             pixel_dv,
             pixel_samples_scale,
+            defocus_disk_u,
+            defocus_disk_v,
         }
     }
 }
@@ -117,7 +132,14 @@ impl InitializedCamera {
             + ((col as f64 + offset.x) * self.pixel_du)
             + ((row as f64 + offset.y) * self.pixel_dv);
 
-        Ray::new(self.center, pixel_sample - self.center)
+        let origin = if self.defocus_angle <= 0.0 {
+            self.center
+        } else {
+            let p = Vector3::random_in_unit_disk();
+            self.center + (p.x * self.defocus_disk_u) + (p.y * self.defocus_disk_v)
+        };
+
+        Ray::new(origin, pixel_sample - origin)
     }
 }
 
