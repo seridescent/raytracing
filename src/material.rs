@@ -1,3 +1,5 @@
+use rand::random;
+
 use crate::{
     hittable::Hit,
     ray::Ray,
@@ -83,6 +85,12 @@ impl Dielectric {
     pub fn new(refraction_index: f64) -> Self {
         Self { refraction_index }
     }
+
+    /// Schlick's approximation for reflectance
+    fn reflectance(cos_theta: f64, refraction_index: f64) -> f64 {
+        let r0 = ((1.0 - refraction_index) / (1.0 + refraction_index)).powi(2);
+        r0 + (1.0 - r0) * (1.0 - cos_theta).powi(5)
+    }
 }
 
 impl Material for Dielectric {
@@ -94,9 +102,11 @@ impl Material for Dielectric {
             self.refraction_index
         };
 
-        let cos_theta = dot(r_in, hit.face_normal).clamp(-1.0, 1.0);
+        let cos_theta = dot(-r_in, hit.face_normal).clamp(-1.0, 1.0);
         let sin_theta = (1.0 - cos_theta.powi(2)).sqrt();
-        let r_out = if eta_in_over_eta_out * sin_theta > 1.0 {
+        let r_out = if eta_in_over_eta_out * sin_theta > 1.0
+            || Self::reflectance(cos_theta, eta_in_over_eta_out) > random::<f64>()
+        {
             reflect(r_in, hit.face_normal)
         } else {
             refract(r_in, hit.face_normal, eta_in_over_eta_out)
