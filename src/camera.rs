@@ -184,7 +184,7 @@ fn ray_color(ray: Ray, world: &impl Hittable, remaining_ray_bounces: u32) -> Vec
     }
 
     if let Some(hit) = world.hit(ray, Interval::new(0.001, f64::INFINITY)) {
-        return match hit.material.clone().scatter(ray, hit) {
+        return match hit.material.scatter(ray, hit) {
             Some(scatter) => {
                 ray_color(scatter.ray, world, remaining_ray_bounces - 1) * scatter.attenuation
             }
@@ -206,7 +206,7 @@ fn ray_color_iterative(ray: Ray, world: &impl Hittable, max_ray_bounces: u32) ->
         }
 
         if let Some(hit) = world.hit(next_ray, Interval::new(0.001, f64::INFINITY)) {
-            if let Some(scatter) = hit.material.clone().scatter(next_ray, hit) {
+            if let Some(scatter) = hit.material.scatter(next_ray, hit) {
                 computed_bounces += 1;
                 total_attenuation *= scatter.attenuation;
                 next_ray = scatter.ray;

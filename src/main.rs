@@ -1,22 +1,32 @@
 use std::error::Error;
-use std::sync::Arc;
 use std::time::Instant;
 
 use rand::{random, random_range};
 use raytracing::camera::Camera;
 use raytracing::hittable::Hittable;
 use raytracing::interval::Interval;
-use raytracing::material::{Dielectric, Lambertian, Material, Metal};
+use raytracing::material::Material;
 use raytracing::sphere::{ConstructSphereError, Sphere};
 use raytracing::vector::Vector3;
 
 #[allow(dead_code)]
 fn demo_spheres() -> Result<Vec<Box<dyn Hittable>>, ConstructSphereError> {
-    let material_ground = Arc::new(Lambertian::new(Vector3::new(0.8, 0.8, 0.0)));
-    let material_center = Arc::new(Lambertian::new(Vector3::new(0.1, 0.2, 0.5)));
-    let material_left = Arc::new(Dielectric::new(1.5));
-    let material_bubble = Arc::new(Dielectric::new(1.0 / 1.5));
-    let material_right = Arc::new(Metal::new(Vector3::new(0.8, 0.6, 0.2), 1.0));
+    let material_ground = Material::Lambertian {
+        albedo: Vector3::new(0.8, 0.8, 0.0),
+    };
+    let material_center = Material::Lambertian {
+        albedo: Vector3::new(0.1, 0.2, 0.5),
+    };
+    let material_left = Material::Dielectric {
+        refraction_index: 1.5,
+    };
+    let material_bubble = Material::Dielectric {
+        refraction_index: 1.0 / 1.5,
+    };
+    let material_right = Material::Metal {
+        albedo: Vector3::new(0.8, 0.6, 0.2),
+        fuzz_radius: 1.0,
+    };
 
     Ok(vec![
         Box::new(Sphere::new(
@@ -52,7 +62,9 @@ fn cover_spheres() -> Result<Vec<Box<dyn Hittable>>, ConstructSphereError> {
     const SMALL_SPHERES_RADIUS: f64 = 0.2;
     const BIG_SPHERES_RADIUS: f64 = 1.0;
 
-    let ground_material = Arc::new(Lambertian::new(Vector3::new(0.5, 0.5, 0.5)));
+    let ground_material = Material::Lambertian {
+        albedo: Vector3::new(0.5, 0.5, 0.5),
+    };
     let mut world: Vec<Box<dyn Hittable>> = vec![Box::new(Sphere::new(
         Vector3::new(0.0, -1000.0, 0.0),
         1000.0,
@@ -63,19 +75,26 @@ fn cover_spheres() -> Result<Vec<Box<dyn Hittable>>, ConstructSphereError> {
         let back_sphere = Sphere::new(
             Vector3::new(-4.0, 1.0, 0.0),
             BIG_SPHERES_RADIUS,
-            Arc::new(Lambertian::new(Vector3::new(0.4, 0.2, 0.1))),
+            Material::Lambertian {
+                albedo: Vector3::new(0.4, 0.2, 0.1),
+            },
         )?;
 
         let middle_sphere = Sphere::new(
             Vector3::new(0.0, 1.0, 0.0),
             BIG_SPHERES_RADIUS,
-            Arc::new(Dielectric::new(1.5)),
+            Material::Dielectric {
+                refraction_index: 1.5,
+            },
         )?;
 
         let front_sphere = Sphere::new(
             Vector3::new(4.0, 1.0, 0.0),
             BIG_SPHERES_RADIUS,
-            Arc::new(Metal::new(Vector3::new(0.7, 0.6, 0.5), 0.0)),
+            Material::Metal {
+                albedo: Vector3::new(0.7, 0.6, 0.5),
+                fuzz_radius: 0.0,
+            },
         )?;
 
         vec![back_sphere, middle_sphere, front_sphere]
@@ -100,18 +119,22 @@ fn cover_spheres() -> Result<Vec<Box<dyn Hittable>>, ConstructSphereError> {
                 continue;
             }
 
-            let material: Arc<dyn Material> = {
+            let material = {
                 let choose_material = random::<f64>();
 
                 if choose_material < 0.8 {
-                    Arc::new(Lambertian::new(Vector3::random() * Vector3::random()))
+                    Material::Lambertian {
+                        albedo: Vector3::random() * Vector3::random(),
+                    }
                 } else if choose_material < 0.95 {
-                    Arc::new(Metal::new(
-                        Vector3::random_range(Interval::new(0.5, 1.0)),
-                        random_range(0.0..0.5),
-                    ))
+                    Material::Metal {
+                        albedo: Vector3::random_range(Interval::new(0.5, 1.0)),
+                        fuzz_radius: random_range(0.0..0.5),
+                    }
                 } else {
-                    Arc::new(Dielectric::new(1.5))
+                    Material::Dielectric {
+                        refraction_index: 1.5,
+                    }
                 }
             };
 

@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use thiserror::Error;
 
 use crate::{
@@ -14,7 +12,7 @@ use crate::{
 pub struct Sphere {
     pub center: Vector3,
     pub radius: f64,
-    material: Arc<dyn Material>,
+    material: Material,
 }
 
 #[derive(Error, Debug)]
@@ -27,7 +25,7 @@ impl Sphere {
     pub fn new(
         center: Vector3,
         radius: f64,
-        material: Arc<dyn Material>,
+        material: Material,
     ) -> Result<Self, ConstructSphereError> {
         if radius < 0.0 {
             Err(ConstructSphereError::NonnegativeRadius(radius))
@@ -74,7 +72,7 @@ impl Hittable for Sphere {
         let outward_normal = (p - self.center) / self.radius;
         let (front_face, face_normal) = compute_face_normal(ray, outward_normal);
 
-        let material = self.material.clone();
+        let material = self.material;
 
         Some(Hit {
             t,

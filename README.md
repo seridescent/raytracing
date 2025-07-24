@@ -7,7 +7,7 @@ cargo run --profile release > cover_spheres.ppm && pnmtopng cover_spheres.ppm > 
     Finished `release` profile [optimized] target(s) in 1.10s
      Running `target/release/raytracing`
 
-Done! Ran for 708.686617708s
+Done! Ran for 388.152594959s
 ```
 ![](./cover_spheres.png)
 
