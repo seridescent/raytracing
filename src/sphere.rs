@@ -12,8 +12,8 @@ use crate::{
 
 #[derive(Clone)]
 pub struct Sphere {
-    center: Vector3,
-    radius: f64,
+    pub center: Vector3,
+    pub radius: f64,
     material: Rc<dyn Material>,
 }
 
