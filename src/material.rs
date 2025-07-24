@@ -12,7 +12,7 @@ pub struct Scatter {
     pub attenuation: Vector3,
 }
 
-pub trait Material {
+pub trait Material: Send + Sync {
     fn scatter(&self, ray: Ray, hit: Hit) -> Option<Scatter>;
 }
 

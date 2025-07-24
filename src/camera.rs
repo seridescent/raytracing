@@ -1,4 +1,5 @@
 use rand::random;
+use rayon::prelude::*;
 
 use crate::{
     hittable::Hittable,
@@ -107,24 +108,53 @@ impl Camera {
     }
 }
 
+struct Pixel {
+    pub ord: u32,
+    pub color: Vector3,
+}
+
+impl Pixel {
+    pub fn new(ord: u32, color: Vector3) -> Self {
+        Self { ord, color }
+    }
+}
+
 impl InitializedCamera {
     pub fn render(&self, world: &impl Hittable) {
         println!("P3");
         println!("{} {}", self.image_width, self.image_height);
         println!("{}", 255);
 
-        for row in 0..self.image_height {
-            eprint!("\rScanlines remaining: {}   ", self.image_height - row);
-            for col in 0..self.image_width {
-                let color = (0..self.samples_per_pixel)
-                    .map(|_| sample_square())
-                    .map(|offset| self.get_ray(col, row, offset))
-                    .map(|ray| ray_color(ray, world, self.max_depth))
-                    .fold(Vector3::ZERO, |acc, e| acc + e);
+        let mut pixels = (0..self.image_height)
+            .into_par_iter()
+            .flat_map(|row| {
+                let world_ref = world;
+                (0..self.image_width).into_par_iter().map({
+                    move |col| {
+                        Pixel::new(
+                            row * self.image_width + col,
+                            (0..self.samples_per_pixel)
+                                .into_par_iter()
+                                .map(|_| sample_square())
+                                .map(|offset| self.get_ray(col, row, offset))
+                                .map(|ray| ray_color(ray, world_ref, self.max_depth))
+                                .reduce(|| Vector3::ZERO, |acc, e| acc + e)
+                                * self.pixel_samples_scale,
+                        )
+                    }
+                })
+            })
+            .collect::<Vec<Pixel>>();
 
-                println!("{}", ppm_pixel(color * self.pixel_samples_scale))
-            }
-        }
+        pixels.par_sort_unstable_by_key(|pixel| pixel.ord);
+
+        let body = pixels
+            .iter()
+            .map(|pixel| ppm_pixel(pixel.color))
+            .collect::<Vec<String>>()
+            .join("\n");
+
+        println!("{body}");
     }
 
     fn get_ray(&self, col: u32, row: u32, offset: Vector3) -> Ray {

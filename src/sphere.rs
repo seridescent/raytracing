@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use thiserror::Error;
 
@@ -14,7 +14,7 @@ use crate::{
 pub struct Sphere {
     pub center: Vector3,
     pub radius: f64,
-    material: Rc<dyn Material>,
+    material: Arc<dyn Material>,
 }
 
 #[derive(Error, Debug)]
@@ -27,7 +27,7 @@ impl Sphere {
     pub fn new(
         center: Vector3,
         radius: f64,
-        material: Rc<dyn Material>,
+        material: Arc<dyn Material>,
     ) -> Result<Self, ConstructSphereError> {
         if radius < 0.0 {
             Err(ConstructSphereError::NonnegativeRadius(radius))

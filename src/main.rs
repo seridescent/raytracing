@@ -1,5 +1,5 @@
 use std::error::Error;
-use std::rc::Rc;
+use std::sync::Arc;
 use std::time::Instant;
 
 use rand::{random, random_range};
@@ -12,11 +12,11 @@ use raytracing::vector::Vector3;
 
 #[allow(dead_code)]
 fn demo_spheres() -> Result<Vec<Box<dyn Hittable>>, ConstructSphereError> {
-    let material_ground = Rc::new(Lambertian::new(Vector3::new(0.8, 0.8, 0.0)));
-    let material_center = Rc::new(Lambertian::new(Vector3::new(0.1, 0.2, 0.5)));
-    let material_left = Rc::new(Dielectric::new(1.5));
-    let material_bubble = Rc::new(Dielectric::new(1.0 / 1.5));
-    let material_right = Rc::new(Metal::new(Vector3::new(0.8, 0.6, 0.2), 1.0));
+    let material_ground = Arc::new(Lambertian::new(Vector3::new(0.8, 0.8, 0.0)));
+    let material_center = Arc::new(Lambertian::new(Vector3::new(0.1, 0.2, 0.5)));
+    let material_left = Arc::new(Dielectric::new(1.5));
+    let material_bubble = Arc::new(Dielectric::new(1.0 / 1.5));
+    let material_right = Arc::new(Metal::new(Vector3::new(0.8, 0.6, 0.2), 1.0));
 
     Ok(vec![
         Box::new(Sphere::new(
@@ -47,11 +47,12 @@ fn demo_spheres() -> Result<Vec<Box<dyn Hittable>>, ConstructSphereError> {
     ])
 }
 
+#[allow(dead_code)]
 fn cover_spheres() -> Result<Vec<Box<dyn Hittable>>, ConstructSphereError> {
     const SMALL_SPHERES_RADIUS: f64 = 0.2;
     const BIG_SPHERES_RADIUS: f64 = 1.0;
 
-    let ground_material = Rc::new(Lambertian::new(Vector3::new(0.5, 0.5, 0.5)));
+    let ground_material = Arc::new(Lambertian::new(Vector3::new(0.5, 0.5, 0.5)));
     let mut world: Vec<Box<dyn Hittable>> = vec![Box::new(Sphere::new(
         Vector3::new(0.0, -1000.0, 0.0),
         1000.0,
@@ -62,19 +63,19 @@ fn cover_spheres() -> Result<Vec<Box<dyn Hittable>>, ConstructSphereError> {
         let back_sphere = Sphere::new(
             Vector3::new(-4.0, 1.0, 0.0),
             BIG_SPHERES_RADIUS,
-            Rc::new(Lambertian::new(Vector3::new(0.4, 0.2, 0.1))),
+            Arc::new(Lambertian::new(Vector3::new(0.4, 0.2, 0.1))),
         )?;
 
         let middle_sphere = Sphere::new(
             Vector3::new(0.0, 1.0, 0.0),
             BIG_SPHERES_RADIUS,
-            Rc::new(Dielectric::new(1.5)),
+            Arc::new(Dielectric::new(1.5)),
         )?;
 
         let front_sphere = Sphere::new(
             Vector3::new(4.0, 1.0, 0.0),
             BIG_SPHERES_RADIUS,
-            Rc::new(Metal::new(Vector3::new(0.7, 0.6, 0.5), 0.0)),
+            Arc::new(Metal::new(Vector3::new(0.7, 0.6, 0.5), 0.0)),
         )?;
 
         vec![back_sphere, middle_sphere, front_sphere]
@@ -99,18 +100,18 @@ fn cover_spheres() -> Result<Vec<Box<dyn Hittable>>, ConstructSphereError> {
                 continue;
             }
 
-            let material: Rc<dyn Material> = {
+            let material: Arc<dyn Material> = {
                 let choose_material = random::<f64>();
 
                 if choose_material < 0.8 {
-                    Rc::new(Lambertian::new(Vector3::random() * Vector3::random()))
+                    Arc::new(Lambertian::new(Vector3::random() * Vector3::random()))
                 } else if choose_material < 0.95 {
-                    Rc::new(Metal::new(
+                    Arc::new(Metal::new(
                         Vector3::random_range(Interval::new(0.5, 1.0)),
                         random_range(0.0..0.5),
                     ))
                 } else {
-                    Rc::new(Dielectric::new(1.5))
+                    Arc::new(Dielectric::new(1.5))
                 }
             };
 

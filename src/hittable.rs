@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::{
     interval::Interval,
@@ -16,10 +16,10 @@ pub struct Hit {
     /// whether the ray hit the "outward" face of this surface
     pub front_face: bool,
 
-    pub material: Rc<dyn Material>,
+    pub material: Arc<dyn Material>,
 }
 
-pub trait Hittable {
+pub trait Hittable: Send + Sync {
     fn hit(&self, ray: Ray, ray_t: Interval) -> Option<Hit>;
 }
 
