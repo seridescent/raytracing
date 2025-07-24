@@ -137,7 +137,7 @@ impl InitializedCamera {
                                 .into_par_iter()
                                 .map(|_| sample_square())
                                 .map(|offset| self.get_ray(col, row, offset))
-                                .map(|ray| ray_color(ray, world_ref, self.max_depth))
+                                .map(|ray| ray_color_iterative(ray, world_ref, self.max_depth))
                                 .reduce(|| Vector3::ZERO, |acc, e| acc + e)
                                 * self.pixel_samples_scale,
                         )
@@ -177,6 +177,7 @@ fn sample_square() -> Vector3 {
     Vector3::new(random::<f64>() - 0.5, random::<f64>() - 0.5, 0.0)
 }
 
+#[allow(dead_code)]
 fn ray_color(ray: Ray, world: &impl Hittable, remaining_ray_bounces: u32) -> Vector3 {
     if remaining_ray_bounces == 0 {
         return Vector3::ZERO;
@@ -191,6 +192,36 @@ fn ray_color(ray: Ray, world: &impl Hittable, remaining_ray_bounces: u32) -> Vec
         };
     }
 
+    blue_white_gradient(ray)
+}
+
+fn ray_color_iterative(ray: Ray, world: &impl Hittable, max_ray_bounces: u32) -> Vector3 {
+    let mut next_ray = ray;
+    let mut total_attenuation = Vector3::new(1.0, 1.0, 1.0);
+    let mut computed_bounces = 0;
+
+    loop {
+        if computed_bounces == max_ray_bounces {
+            return Vector3::ZERO;
+        }
+
+        if let Some(hit) = world.hit(next_ray, Interval::new(0.001, f64::INFINITY)) {
+            if let Some(scatter) = hit.material.clone().scatter(next_ray, hit) {
+                computed_bounces += 1;
+                total_attenuation *= scatter.attenuation;
+                next_ray = scatter.ray;
+            } else {
+                return Vector3::ZERO;
+            }
+        } else {
+            break;
+        }
+    }
+
+    blue_white_gradient(next_ray) * total_attenuation
+}
+
+fn blue_white_gradient(ray: Ray) -> Vector3 {
     let alpha = (ray.direction.to_unit().y + 1.0) * 0.5;
 
     let white = Vector3::new(1.0, 1.0, 1.0);
