@@ -6,6 +6,13 @@
   "lsp": {
     "rust-analyzer": {
       "initialization_options": {}
+    },
+    "nixd": {
+      "initialization_options": {
+        "formatting": {
+          "command": ["nixpkgs-fmt"]
+        }
+      }
     }
   },
   "inlay_hints": {

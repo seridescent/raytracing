@@ -20,7 +20,8 @@
     treefmt-nix.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = inputs:
+  outputs =
+    inputs:
     inputs.flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [
         inputs.treefmt-nix.flakeModule
@@ -29,86 +30,97 @@
         ./rust.nix
       ];
 
-      systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
+        "aarch64-darwin"
+        "x86_64-darwin"
+      ];
 
-      perSystem = { config, self', inputs', pkgs, system, ... }: {
-        # Per-system attributes can be defined here. The self' and inputs'
-        # module parameters provide easy access to attributes of the same
-        # system.
-        imports = [
-          "${inputs.nixpkgs}/nixos/modules/misc/nixpkgs.nix"
-        ];
-        nixpkgs.hostPlatform = system;
-        nixpkgs.overlays = [ (import inputs.rust-overlay) ];
-
-        treefmt = {
-          projectRootFile = "flake.nix";
-          programs = {
-            nixpkgs-fmt.enable = true;
-
-            rustfmt.enable = true;
-            rustfmt.package = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
-          };
-        };
-
-        pre-commit.settings = {
-          hooks = {
-            treefmt.enable = true;
-          };
-        };
-
-
-
-        devshells.default = {
-          name = "raytracing-shell";
-
-          env = [
+      perSystem =
+        { config
+        , self'
+        , inputs'
+        , pkgs
+        , system
+        , ...
+        }:
+        {
+          # Per-system attributes can be defined here. The self' and inputs'
+          # module parameters provide easy access to attributes of the same
+          # system.
+          imports = [
+            "${inputs.nixpkgs}/nixos/modules/misc/nixpkgs.nix"
           ];
+          nixpkgs.hostPlatform = system;
+          nixpkgs.overlays = [ (import inputs.rust-overlay) ];
 
-          commands = [
-            {
-              name = "watch-img";
-              help = "viu frontend that watches an image for changes";
-              command = ''
-                set -euo pipefail
+          treefmt = {
+            projectRootFile = "flake.nix";
+            programs = {
+              nixpkgs-fmt.enable = true;
 
-                # Check if file path is provided
-                if [[ $# -ne 1 ]]; then
-                    echo "Usage: $0 <path-to-img-file>" >&2
-                    exit 1
-                fi
+              rustfmt.enable = true;
+              rustfmt.package = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+            };
+          };
 
-                IMG_FILE="$1"
+          pre-commit.settings = {
+            hooks = {
+              treefmt.enable = true;
+            };
+          };
 
-                clear
-                ${pkgs.viu}/bin/viu "$IMG_FILE"
+          devshells.default = {
+            name = "raytracing-shell";
 
-                # Watch for changes and re-render
-                # for some reason, fsevents_monitor is really slow on my macbook,
-                # so we use poll_monitor instead.
-                ${pkgs.fswatch}/bin/fswatch -m poll_monitor -o "$IMG_FILE" | while read -r; do
-                    clear
-                    ${pkgs.viu}/bin/viu "$IMG_FILE"
-                done
-              '';
-            }
-          ];
-
-          devshell = {
-            packagesFrom = [
-              self'.devShells.rust
-              config.treefmt.build.devShell
+            env = [
             ];
 
-            packages = [
-              pkgs.nixd # Nix language server
+            commands = [
+              {
+                name = "watch-img";
+                help = "viu frontend that watches an image for changes";
+                command = ''
+                  set -euo pipefail
+
+                  # Check if file path is provided
+                  if [[ $# -ne 1 ]]; then
+                      echo "Usage: $0 <path-to-img-file>" >&2
+                      exit 1
+                  fi
+
+                  IMG_FILE="$1"
+
+                  clear
+                  ${pkgs.viu}/bin/viu "$IMG_FILE"
+
+                  # Watch for changes and re-render
+                  # for some reason, fsevents_monitor is really slow on my macbook,
+                  # so we use poll_monitor instead.
+                  ${pkgs.fswatch}/bin/fswatch -m poll_monitor -o "$IMG_FILE" | while read -r; do
+                      clear
+                      ${pkgs.viu}/bin/viu "$IMG_FILE"
+                  done
+                '';
+              }
             ];
 
-            startup.pre-commit.text = config.pre-commit.installationScript;
-          };
-        };
+            devshell = {
+              packagesFrom = [
+                self'.devShells.rust
+                config.treefmt.build.devShell
+              ];
 
-      };
+              packages = [
+                pkgs.nixd
+              ];
+
+              startup.pre-commit.text = config.pre-commit.installationScript;
+            };
+          };
+
+        };
       flake = {
         # The usual flake attributes can be defined here, including system-
         # agnostic ones like nixosModule and system-enumerating ones, although
