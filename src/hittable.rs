@@ -18,11 +18,11 @@ pub struct Hit {
 }
 
 pub trait Hittable: Send + Sync {
-    fn hit(&self, ray: Ray, ray_t: Interval) -> Option<Hit>;
+    fn hit(&self, ray: &Ray, ray_t: &Interval) -> Option<Hit>;
 }
 
 impl Hittable for Vec<Box<dyn Hittable>> {
-    fn hit(&self, ray: Ray, ray_t: Interval) -> Option<Hit> {
+    fn hit(&self, ray: &Ray, ray_t: &Interval) -> Option<Hit> {
         self.iter().fold(None, |acc, e| {
             let maybe_hit = e.hit(ray, ray_t);
 
@@ -38,7 +38,7 @@ impl Hittable for Vec<Box<dyn Hittable>> {
     }
 }
 
-pub fn compute_face_normal(ray: Ray, outward_normal: Vector3) -> (bool, Vector3) {
+pub fn compute_face_normal(ray: &Ray, outward_normal: Vector3) -> (bool, Vector3) {
     let front_face = dot(ray.direction, outward_normal) < 0.0;
 
     let face_normal = if front_face {

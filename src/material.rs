@@ -6,7 +6,7 @@ use crate::{
     vector::{Vector3, dot, reflect, refract},
 };
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct Scatter {
     pub ray: Ray,
     pub attenuation: Vector3,
@@ -20,8 +20,8 @@ pub enum Material {
 }
 
 impl Material {
-    pub fn scatter(self, ray: Ray, hit: Hit) -> Option<Scatter> {
-        match self {
+    pub fn scatter(&self, ray: &Ray, hit: &Hit) -> Option<Scatter> {
+        match *self {
             Material::Lambertian { albedo } => {
                 let direction = hit.face_normal + Vector3::random_unit();
                 let direction = if direction.is_near_zero() {

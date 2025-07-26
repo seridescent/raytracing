@@ -40,7 +40,7 @@ impl Sphere {
 }
 
 impl Hittable for Sphere {
-    fn hit(&self, ray: Ray, ray_t: Interval) -> Option<Hit> {
+    fn hit(&self, ray: &Ray, ray_t: &Interval) -> Option<Hit> {
         let oc = self.center - ray.origin;
         let a = ray.direction.length_squared();
         let h = dot(ray.direction, oc);
