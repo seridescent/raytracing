@@ -12,7 +12,7 @@ pub struct Scatter {
     pub attenuation: Vector3,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub enum Material {
     Lambertian { albedo: Vector3 },
     Metal { albedo: Vector3, fuzz_radius: f64 },
