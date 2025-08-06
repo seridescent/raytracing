@@ -1,13 +1,14 @@
 # raytracing
-going through "Ray Tracing in One Weekend"
+going through "Ray Tracing in One Weekend".
 
+anecdotally:
 ```shell
 cargo run --profile release > cover_spheres.ppm && pnmtopng cover_spheres.ppm > cover_spheres.png
    Compiling raytracing v0.1.0 (/Users/seridescent/projects/raytracing)
     Finished `release` profile [optimized] target(s) in 1.10s
      Running `target/release/raytracing`
 
-Done! Ran for 388.152594959s
+Done! Ran for 309.577684875s
 ```
 ![](./cover_spheres.png)
 

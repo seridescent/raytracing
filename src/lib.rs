@@ -1,7 +1,7 @@
 pub mod camera;
-pub mod hittable;
+pub mod geometry;
 pub mod interval;
 pub mod material;
 pub mod ray;
-pub mod sphere;
+pub mod surface;
 pub mod vector;

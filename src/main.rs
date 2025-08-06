@@ -3,14 +3,14 @@ use std::time::Instant;
 
 use rand::{random, random_range};
 use raytracing::camera::Camera;
-use raytracing::hittable::Hittable;
+use raytracing::geometry::{ConstructSphereError, Geometry};
 use raytracing::interval::Interval;
 use raytracing::material::Material;
-use raytracing::sphere::{ConstructSphereError, Sphere};
+use raytracing::surface::Surface;
 use raytracing::vector::Vector3;
 
 #[allow(dead_code)]
-fn demo_spheres() -> Result<Vec<Box<dyn Hittable>>, ConstructSphereError> {
+fn demo_spheres() -> Result<Vec<Surface>, ConstructSphereError> {
     let material_ground = Material::Lambertian {
         albedo: Vector3::new(0.8, 0.8, 0.0),
     };
@@ -29,73 +29,64 @@ fn demo_spheres() -> Result<Vec<Box<dyn Hittable>>, ConstructSphereError> {
     };
 
     Ok(vec![
-        Box::new(Sphere::new(
-            Vector3::new(0.0, -100.5, -1.0),
-            100.0,
+        Surface::new(
+            Geometry::sphere(Vector3::new(0.0, -100.5, -1.0), 100.0)?,
             material_ground,
-        )?),
-        Box::new(Sphere::new(
-            Vector3::new(0.0, 0.0, -1.2),
-            0.5,
+        ),
+        Surface::new(
+            Geometry::sphere(Vector3::new(0.0, 0.0, -1.2), 0.5)?,
             material_center,
-        )?),
-        Box::new(Sphere::new(
-            Vector3::new(-1.0, 0.0, -1.0),
-            0.5,
+        ),
+        Surface::new(
+            Geometry::sphere(Vector3::new(-1.0, 0.0, -1.0), 0.5)?,
             material_left,
-        )?),
-        Box::new(Sphere::new(
-            Vector3::new(-1.0, 0.0, -1.0),
-            0.4,
+        ),
+        Surface::new(
+            Geometry::sphere(Vector3::new(-1.0, 0.0, -1.0), 0.4)?,
             material_bubble,
-        )?),
-        Box::new(Sphere::new(
-            Vector3::new(1.0, 0.0, -1.0),
-            0.5,
+        ),
+        Surface::new(
+            Geometry::sphere(Vector3::new(1.0, 0.0, -1.0), 0.5)?,
             material_right,
-        )?),
+        ),
     ])
 }
 
 #[allow(dead_code)]
-fn cover_spheres() -> Result<Vec<Box<dyn Hittable>>, ConstructSphereError> {
+fn cover_spheres() -> Result<Vec<Surface>, ConstructSphereError> {
     const SMALL_SPHERES_RADIUS: f64 = 0.2;
     const BIG_SPHERES_RADIUS: f64 = 1.0;
 
     let ground_material = Material::Lambertian {
         albedo: Vector3::new(0.5, 0.5, 0.5),
     };
-    let mut world: Vec<Box<dyn Hittable>> = vec![Box::new(Sphere::new(
-        Vector3::new(0.0, -1000.0, 0.0),
-        1000.0,
+    let mut world: Vec<Surface> = vec![Surface::new(
+        Geometry::sphere(Vector3::new(0.0, -1000.0, 0.0), 1000.0)?,
         ground_material,
-    )?)];
+    )];
 
     let big_spheres = {
-        let back_sphere = Sphere::new(
-            Vector3::new(-4.0, 1.0, 0.0),
-            BIG_SPHERES_RADIUS,
+        let back_sphere = Surface::new(
+            Geometry::sphere(Vector3::new(-4.0, 1.0, 0.0), BIG_SPHERES_RADIUS)?,
             Material::Lambertian {
                 albedo: Vector3::new(0.4, 0.2, 0.1),
             },
-        )?;
+        );
 
-        let middle_sphere = Sphere::new(
-            Vector3::new(0.0, 1.0, 0.0),
-            BIG_SPHERES_RADIUS,
+        let middle_sphere = Surface::new(
+            Geometry::sphere(Vector3::new(0.0, 1.0, 0.0), BIG_SPHERES_RADIUS)?,
             Material::Dielectric {
                 refraction_index: 1.5,
             },
-        )?;
+        );
 
-        let front_sphere = Sphere::new(
-            Vector3::new(4.0, 1.0, 0.0),
-            BIG_SPHERES_RADIUS,
+        let front_sphere = Surface::new(
+            Geometry::sphere(Vector3::new(4.0, 1.0, 0.0), BIG_SPHERES_RADIUS)?,
             Material::Metal {
                 albedo: Vector3::new(0.7, 0.6, 0.5),
                 fuzz_radius: 0.0,
             },
-        )?;
+        );
 
         vec![back_sphere, middle_sphere, front_sphere]
     };
@@ -110,7 +101,12 @@ fn cover_spheres() -> Result<Vec<Box<dyn Hittable>>, ConstructSphereError> {
 
             if big_spheres
                 .iter()
-                .map(|sphere| (sphere.center - center).length())
+                .map(|surface| match surface.geometry {
+                    Geometry::Sphere {
+                        center: sphere_center,
+                        ..
+                    } => (sphere_center - center).length(),
+                })
                 .any(|dist_between_centers| {
                     dist_between_centers < (BIG_SPHERES_RADIUS + SMALL_SPHERES_RADIUS)
                 })
@@ -138,18 +134,16 @@ fn cover_spheres() -> Result<Vec<Box<dyn Hittable>>, ConstructSphereError> {
                 }
             };
 
-            world.push(Box::new(Sphere::new(
-                center,
-                SMALL_SPHERES_RADIUS,
+            world.push(Surface::new(
+                Geometry::sphere(center, SMALL_SPHERES_RADIUS)?,
                 material,
-            )?));
+            ));
         }
     }
 
     big_spheres
         .into_iter()
-        .map(Box::new)
-        .for_each(|boxed| world.push(boxed));
+        .for_each(|surface| world.push(surface));
 
     Ok(world)
 }

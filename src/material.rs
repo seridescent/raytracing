@@ -1,4 +1,4 @@
-use crate::{hittable::Hit, ray::Ray, vector::Vector3};
+use crate::{geometry::Hit, ray::Ray, vector::Vector3};
 
 #[derive(Clone, Debug)]
 pub struct Scatter {
@@ -30,7 +30,7 @@ impl Material {
 
 mod lambertian {
     use super::Scatter;
-    use crate::{hittable::Hit, ray::Ray, vector::Vector3};
+    use crate::{geometry::Hit, ray::Ray, vector::Vector3};
 
     pub fn scatter(albedo: Vector3, _ray: &Ray, hit: &Hit) -> Option<Scatter> {
         let direction = hit.face_normal + Vector3::random_unit();
@@ -50,7 +50,7 @@ mod lambertian {
 mod metal {
     use super::Scatter;
     use crate::{
-        hittable::Hit,
+        geometry::Hit,
         ray::Ray,
         vector::{Vector3, dot, reflect},
     };
@@ -73,7 +73,7 @@ mod metal {
 mod dielectric {
     use super::{Scatter, reflectance};
     use crate::{
-        hittable::Hit,
+        geometry::Hit,
         ray::Ray,
         vector::{Vector3, dot, reflect, refract},
     };
