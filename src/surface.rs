@@ -1,4 +1,5 @@
 use crate::{
+    aabb::AABB,
     geometry::{Geometry, Hit},
     interval::Interval,
     material::Material,
@@ -7,6 +8,7 @@ use crate::{
 
 pub trait Hittable: Send + Sync {
     fn hit(&self, ray: &Ray, ray_t: &Interval) -> Option<(Hit, Material)>;
+    fn bounding_box(&self) -> AABB;
 }
 
 pub struct Surface {
@@ -28,6 +30,10 @@ impl Hittable for Surface {
 
         None
     }
+
+    fn bounding_box(&self) -> AABB {
+        self.geometry.bounding_box()
+    }
 }
 
 impl Hittable for Vec<Surface> {
@@ -42,5 +48,11 @@ impl Hittable for Vec<Surface> {
                 (Some(best), Some(found)) => Some(if found.0.t < best.0.t { found } else { best }),
             }
         })
+    }
+
+    fn bounding_box(&self) -> AABB {
+        self.iter()
+            .map(|e| e.bounding_box())
+            .fold(AABB::EMPTY, AABB::merge)
     }
 }
