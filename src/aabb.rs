@@ -22,6 +22,10 @@ impl AABB {
         self.max
     }
 
+    pub fn centroid(&self) -> Vector3 {
+        self.min + ((self.max - self.min) / 2.0)
+    }
+
     pub fn new(a: Vector3, b: Vector3) -> Self {
         Self {
             min: Vector3::new(a.x.min(b.x), a.y.min(b.y), a.z.min(b.z)),

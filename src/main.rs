@@ -170,10 +170,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         ..Default::default()
     };
 
-    let world = BVH::from_slice(
-        world.into_boxed_slice(),
-        &PartitionBy::LongestAxisSliceBisect,
-    );
+    let world = BVH::from_slice(world.into_boxed_slice(), &PartitionBy::LongestAxisMidpoint);
 
     let render_start_time = Instant::now();
     camera.initialize().render(&world);

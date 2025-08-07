@@ -1,3 +1,5 @@
+use std::mem::swap;
+
 use crate::{
     aabb::AABB,
     geometry::Hit,
@@ -5,52 +7,79 @@ use crate::{
     material::Material,
     ray::Ray,
     surface::{Hittable, Surface},
+    vector::Vector3,
 };
 
 pub enum PartitionBy {
     /// Sort surfaces by position along the longest axis and place half in each subtree.
     LongestAxisSliceBisect,
+
+    /// Partition by position relative to midpoint of total bounding box's longest axis.
+    LongestAxisMidpoint,
 }
 
 impl PartitionBy {
+    fn position_along_longest_axis_fn(bounding_box: &AABB) -> fn(&Vector3) -> f64 {
+        enum Axis {
+            X,
+            Y,
+            Z,
+        }
+
+        let (longest_axis, _) = [
+            (Axis::X, bounding_box.max().x - bounding_box.min().x),
+            (Axis::Y, bounding_box.max().y - bounding_box.min().y),
+            (Axis::Z, bounding_box.max().z - bounding_box.min().z),
+        ]
+        .into_iter()
+        .max_by(|a, b| a.1.total_cmp(&b.1))
+        .unwrap(); // iterator is obviously non-empty
+
+        match longest_axis {
+            Axis::X => |bounding_box| bounding_box.x,
+            Axis::Y => |bounding_box| bounding_box.y,
+            Axis::Z => |bounding_box| bounding_box.z,
+        }
+    }
+
     fn partition<'s>(&self, surfaces: &'s mut [Surface]) -> (&'s mut [Surface], &'s mut [Surface]) {
         match self {
             PartitionBy::LongestAxisSliceBisect => {
                 let bounding_box = surfaces.as_ref().bounding_box();
-
-                enum Axis {
-                    X,
-                    Y,
-                    Z,
-                }
-
-                let (longest_axis, _) = [
-                    (Axis::X, bounding_box.max().x - bounding_box.min().x),
-                    (Axis::Y, bounding_box.max().y - bounding_box.min().y),
-                    (Axis::Z, bounding_box.max().z - bounding_box.min().z),
-                ]
-                .into_iter()
-                .max_by(|a, b| {
-                    a.1.partial_cmp(&b.1)
-                        .expect("Found NaN dimension of bounding box")
-                })
-                .unwrap_or((Axis::X, 0.0));
-
-                let key_fn = match longest_axis {
-                    Axis::X => |bounding_box: AABB| bounding_box.min().x,
-                    Axis::Y => |bounding_box: AABB| bounding_box.min().y,
-                    Axis::Z => |bounding_box: AABB| bounding_box.min().z,
-                };
+                let key_fn = Self::position_along_longest_axis_fn(&bounding_box);
 
                 surfaces.sort_unstable_by(|a, b| {
-                    key_fn(a.bounding_box())
-                        .partial_cmp(&key_fn(b.bounding_box()))
-                        .expect("Found NaN dimension of bounding box")
+                    key_fn(&a.bounding_box().min()).total_cmp(&key_fn(&b.bounding_box().min()))
                 });
 
                 surfaces.split_at_mut(surfaces.len() / 2)
             }
+            PartitionBy::LongestAxisMidpoint => {
+                let bounding_box = surfaces.as_ref().bounding_box();
+                let key_fn = Self::position_along_longest_axis_fn(&bounding_box);
+                let midpoint = key_fn(&bounding_box.centroid());
+
+                Self::partition_in_place(surfaces, |surface| {
+                    key_fn(&surface.bounding_box().centroid()) < midpoint
+                })
+            }
         }
+    }
+
+    fn partition_in_place(
+        surfaces: &mut [Surface],
+        pred: impl Fn(&Surface) -> bool,
+    ) -> (&mut [Surface], &mut [Surface]) {
+        let mut iter = surfaces.iter_mut();
+        while let Some(left) = iter.find(|e| !pred(*e)) {
+            if let Some(right) = iter.rfind(|e| pred(*e)) {
+                swap(left, right);
+            } else {
+                break;
+            }
+        }
+
+        surfaces.split_at_mut(surfaces.partition_point(pred))
     }
 }
 
