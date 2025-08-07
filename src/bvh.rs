@@ -259,19 +259,19 @@ mod tests {
             // Node 0: Internal(4, bounding_box_of_all) - root splits list sorted along x-axis
             Node::Internal(
                 Some(4),
-                AABB::new(Vector3::new(-2.5, -1.5, -0.5), Vector3::new(2.5, 1.5, 0.5)),
+                AABB::merge(top_left.bounding_box(), bottom_right.bounding_box()),
             ),
             // Node 1: Internal(2, bounding_box_left) - left side splits list sorted along y-axis
             Node::Internal(
                 Some(3),
-                AABB::new(Vector3::new(-2.5, -1.5, -0.5), Vector3::new(-1.5, 1.5, 0.5)),
+                AABB::merge(bottom_left.bounding_box(), top_left.bounding_box()),
             ),
             Node::Leaf(bottom_left.clone()),
             Node::Leaf(top_left.clone()),
             // Node 4: Internal(6, bounding_box_right) - right side splits list sorted along y-axis
             Node::Internal(
                 Some(6),
-                AABB::new(Vector3::new(1.5, -1.5, -0.5), Vector3::new(2.5, 1.5, 0.5)),
+                AABB::merge(bottom_right.bounding_box(), top_right.bounding_box()),
             ),
             Node::Leaf(bottom_right.clone()),
             Node::Leaf(top_right.clone()),
