@@ -11,6 +11,7 @@ pub trait Hittable: Send + Sync {
     fn bounding_box(&self) -> AABB;
 }
 
+#[derive(Clone, PartialEq, Debug)]
 pub struct Surface {
     pub geometry: Geometry,
     pub material: Material,
@@ -36,7 +37,7 @@ impl Hittable for Surface {
     }
 }
 
-impl Hittable for Vec<Surface> {
+impl Hittable for &[Surface] {
     fn hit(&self, ray: &Ray, ray_t: &Interval) -> Option<(Hit, Material)> {
         self.iter().fold(None, |acc, e| {
             let maybe_hit = e.hit(ray, ray_t);

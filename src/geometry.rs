@@ -17,6 +17,7 @@ pub struct Hit {
     pub front_face: bool,
 }
 
+#[derive(Clone, PartialEq, Debug)]
 pub enum Geometry {
     Sphere { center: Vector3, radius: f64 },
 }

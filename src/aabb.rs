@@ -2,6 +2,7 @@ use std::f64;
 
 use crate::{interval::Interval, ray::Ray, vector::Vector3};
 
+#[derive(Clone, PartialEq, Debug)]
 pub struct AABB {
     min: Vector3,
     max: Vector3,
@@ -12,6 +13,14 @@ impl AABB {
         min: Vector3::new(f64::INFINITY, f64::INFINITY, f64::INFINITY),
         max: Vector3::new(f64::NEG_INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY),
     };
+
+    pub fn min(&self) -> Vector3 {
+        self.min
+    }
+
+    pub fn max(&self) -> Vector3 {
+        self.max
+    }
 
     pub fn new(a: Vector3, b: Vector3) -> Self {
         Self {

@@ -4,7 +4,7 @@ use rand::{random, random_range};
 
 use crate::interval::Interval;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Vector3 {
     pub x: f64,
     pub y: f64,

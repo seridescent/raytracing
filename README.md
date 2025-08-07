@@ -9,8 +9,8 @@ cargo run --profile release > cover_spheres.ppm && pnmtopng cover_spheres.ppm > 
      Running `target/release/raytracing`
 
 Done!
-Total runtime: 350.454651s
-Rendering runtime: 350.454531083s
+Total runtime: 87.940495417s
+Rendering runtime: 87.940277625s
 ```
 ![](./cover_spheres.png)
 
