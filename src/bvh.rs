@@ -256,19 +256,19 @@ mod tests {
         ];
 
         let expected_nodes = [
-            // Node 0: Internal(4, bounding_box_of_all) - root splits left vs right at x=0
+            // Node 0: Internal(4, bounding_box_of_all) - root splits list sorted along x-axis
             Node::Internal(
                 Some(4),
                 AABB::new(Vector3::new(-2.5, -1.5, -0.5), Vector3::new(2.5, 1.5, 0.5)),
             ),
-            // Node 1: Internal(2, bounding_box_left) - left side splits top vs bottom at y=0
+            // Node 1: Internal(2, bounding_box_left) - left side splits list sorted along y-axis
             Node::Internal(
                 Some(3),
                 AABB::new(Vector3::new(-2.5, -1.5, -0.5), Vector3::new(-1.5, 1.5, 0.5)),
             ),
             Node::Leaf(bottom_left.clone()),
             Node::Leaf(top_left.clone()),
-            // Node 4: Internal(6, bounding_box_right) - right side splits top vs bottom at y=0
+            // Node 4: Internal(6, bounding_box_right) - right side splits list sorted along y-axis
             Node::Internal(
                 Some(6),
                 AABB::new(Vector3::new(1.5, -1.5, -0.5), Vector3::new(2.5, 1.5, 0.5)),
@@ -305,7 +305,7 @@ mod tests {
         let scene = [top_left.clone(), bottom_left.clone(), bottom_right.clone()];
 
         let expected_nodes = [
-            // Node 0: Internal(2, bounding_box_of_all) - root splits left vs right at x=0,
+            // Node 0: Internal(2, bounding_box_of_all) - root splits list sorted along x-axis
             // but because splitting [1, 2, 3] down the "middle" returns ([1], [2, 3]),
             // this tree is expectedly suboptimal.
             Node::Internal(
