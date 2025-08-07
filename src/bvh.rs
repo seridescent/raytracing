@@ -257,10 +257,7 @@ mod tests {
 
         let expected_nodes = [
             // Node 0: Internal(4, bounding_box_of_all) - root splits list sorted along x-axis
-            Node::Internal(
-                Some(4),
-                AABB::merge(top_left.bounding_box(), bottom_right.bounding_box()),
-            ),
+            Node::Internal(Some(4), scene.as_slice().bounding_box()),
             // Node 1: Internal(2, bounding_box_left) - left side splits list sorted along y-axis
             Node::Internal(
                 Some(3),
@@ -308,10 +305,7 @@ mod tests {
             // Node 0: Internal(2, bounding_box_of_all) - root splits list sorted along x-axis
             // but because splitting [1, 2, 3] down the "middle" returns ([1], [2, 3]),
             // this tree is expectedly suboptimal.
-            Node::Internal(
-                Some(2),
-                AABB::merge(top_left.bounding_box(), bottom_right.bounding_box()),
-            ),
+            Node::Internal(Some(2), scene.as_slice().bounding_box()),
             Node::Leaf(top_left.clone()),
             Node::Internal(
                 Some(4),
@@ -322,6 +316,103 @@ mod tests {
         ];
 
         let actual_bvh = BVH::from_slice(Box::from(scene), &PartitionBy::LongestAxisBisectSlice);
+
+        assert_eq!(Box::from(expected_nodes), actual_bvh.tree)
+    }
+
+    #[test]
+    fn test_midpoint_balanced() {
+        let top_left = Surface::new(
+            Geometry::sphere(Vector3::new(-2.0, 1.0, 0.0), 0.5).unwrap(),
+            Material::Dielectric {
+                refraction_index: 1.0,
+            },
+        );
+        let bottom_left = Surface::new(
+            Geometry::sphere(Vector3::new(-2.0, -1.0, 0.0), 0.5).unwrap(),
+            Material::Dielectric {
+                refraction_index: 1.0,
+            },
+        );
+        let top_right = Surface::new(
+            Geometry::sphere(Vector3::new(2.0, 1.0, 0.0), 0.5).unwrap(),
+            Material::Dielectric {
+                refraction_index: 1.0,
+            },
+        );
+        let bottom_right = Surface::new(
+            Geometry::sphere(Vector3::new(2.0, -1.0, 0.0), 0.5).unwrap(),
+            Material::Dielectric {
+                refraction_index: 1.0,
+            },
+        );
+        let scene = [
+            top_left.clone(),
+            bottom_left.clone(),
+            top_right.clone(),
+            bottom_right.clone(),
+        ];
+
+        let expected_nodes = [
+            // Node 0: Internal(4, bounding_box_of_all) - root splits scene at x=0
+            Node::Internal(Some(4), scene.as_slice().bounding_box()),
+            // Node 1: Internal(2, bounding_box_left) - left side splits scene at y=0
+            Node::Internal(
+                Some(3),
+                AABB::merge(bottom_left.bounding_box(), top_left.bounding_box()),
+            ),
+            Node::Leaf(bottom_left.clone()),
+            Node::Leaf(top_left.clone()),
+            // Node 4: Internal(6, bounding_box_right) - right side splits scene at y=0
+            Node::Internal(
+                Some(6),
+                AABB::merge(bottom_right.bounding_box(), top_right.bounding_box()),
+            ),
+            Node::Leaf(bottom_right.clone()),
+            Node::Leaf(top_right.clone()),
+        ];
+
+        let actual_bvh = BVH::from_slice(Box::from(scene), &PartitionBy::LongestAxisMidpoint);
+
+        assert_eq!(Box::from(expected_nodes), actual_bvh.tree)
+    }
+
+    #[test]
+    fn test_midpoint_on_earth() {
+        let ground = Surface::new(
+            Geometry::sphere(Vector3::new(0.0, -1000.0, 0.0), 1000.0).unwrap(),
+            Material::Dielectric {
+                refraction_index: 1.2,
+            },
+        );
+        let left = Surface::new(
+            Geometry::sphere(Vector3::new(-2.0, 1.0, 0.0), 0.5).unwrap(),
+            Material::Dielectric {
+                refraction_index: 1.0,
+            },
+        );
+        let right = Surface::new(
+            Geometry::sphere(Vector3::new(2.0, 1.0, 0.0), 0.5).unwrap(),
+            Material::Dielectric {
+                refraction_index: 1.0,
+            },
+        );
+        let scene = [left.clone(), right.clone(), ground.clone()];
+
+        let expected_nodes = [
+            Node::Internal(Some(2), scene.as_slice().bounding_box()),
+            // expect to split into [[ground], [left, right]] first. ground is naturally less than midpoint of longest axis, y-axis.
+            Node::Leaf(ground.clone()),
+            // [left, right] longest axis is x
+            Node::Internal(
+                Some(4),
+                AABB::merge(left.bounding_box(), right.bounding_box()),
+            ),
+            Node::Leaf(left.clone()),
+            Node::Leaf(right.clone()),
+        ];
+
+        let actual_bvh = BVH::from_slice(Box::from(scene), &PartitionBy::LongestAxisMidpoint);
 
         assert_eq!(Box::from(expected_nodes), actual_bvh.tree)
     }
