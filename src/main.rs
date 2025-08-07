@@ -169,11 +169,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         ..Default::default()
     };
 
+    let render_start_time = Instant::now();
     camera.initialize().render(&world);
 
+    let finished_time = Instant::now();
     eprintln!(
-        "\n\nDone! Ran for {:#?}",
-        Instant::now().duration_since(start_time)
+        "\n\nDone!\nTotal runtime: {:#?}\nRendering runtime: {:#?}",
+        finished_time.duration_since(start_time),
+        finished_time.duration_since(render_start_time),
     );
 
     Ok(())
