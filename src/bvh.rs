@@ -223,7 +223,7 @@ mod tests {
     use crate::{geometry::Geometry, material::Material, surface::Surface, vector::Vector3};
 
     #[test]
-    fn test_simple_balanced() {
+    fn test_bisect_balanced() {
         let top_left = Surface::new(
             Geometry::sphere(Vector3::new(-2.0, 1.0, 0.0), 0.5).unwrap(),
             Material::Dielectric {
@@ -283,7 +283,7 @@ mod tests {
     }
 
     #[test]
-    fn test_simple_imbalanced() {
+    fn test_bisect_imbalanced() {
         let top_left = Surface::new(
             Geometry::sphere(Vector3::new(-2.0, 1.0, 0.0), 0.5).unwrap(),
             Material::Dielectric {
