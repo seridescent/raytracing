@@ -12,7 +12,7 @@ use crate::{
 
 pub enum PartitionBy {
     /// Sort surfaces by position along the longest axis and place half in each subtree.
-    LongestAxisSliceBisect,
+    LongestAxisBisectSlice,
 
     /// Partition by position relative to midpoint of total bounding box's longest axis.
     LongestAxisMidpoint,
@@ -44,7 +44,7 @@ impl PartitionBy {
 
     fn partition<'s>(&self, surfaces: &'s mut [Surface]) -> (&'s mut [Surface], &'s mut [Surface]) {
         match self {
-            PartitionBy::LongestAxisSliceBisect => {
+            PartitionBy::LongestAxisBisectSlice => {
                 let bounding_box = surfaces.as_ref().bounding_box();
                 let key_fn = Self::position_along_longest_axis_fn(&bounding_box);
 
@@ -277,7 +277,7 @@ mod tests {
             Node::Leaf(top_right.clone()),
         ];
 
-        let actual_bvh = BVH::from_slice(Box::from(scene), &PartitionBy::LongestAxisSliceBisect);
+        let actual_bvh = BVH::from_slice(Box::from(scene), &PartitionBy::LongestAxisBisectSlice);
 
         assert_eq!(Box::from(expected_nodes), actual_bvh.tree)
     }
@@ -321,7 +321,7 @@ mod tests {
             Node::Leaf(bottom_right.clone()),
         ];
 
-        let actual_bvh = BVH::from_slice(Box::from(scene), &PartitionBy::LongestAxisSliceBisect);
+        let actual_bvh = BVH::from_slice(Box::from(scene), &PartitionBy::LongestAxisBisectSlice);
 
         assert_eq!(Box::from(expected_nodes), actual_bvh.tree)
     }
