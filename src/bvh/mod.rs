@@ -78,7 +78,7 @@ impl BVH {
             return Self { tree: Box::new([]) };
         }
 
-        let tree = Self::build_tree_rec(
+        let tree = build_tree_rec(
             partition_by,
             Vec::with_capacity(2 * surfaces.len()),
             &mut surfaces,
@@ -87,47 +87,47 @@ impl BVH {
 
         Self { tree }
     }
+}
 
-    fn build_tree_rec(
-        partition_by: &PartitionBy,
-        mut partial_nodes: Vec<Node>,
-        surfaces: &mut [Surface],
-    ) -> Vec<Node> {
-        if surfaces.len() == 1 {
-            partial_nodes.push(Node::Leaf(surfaces[0].clone()));
-        } else if surfaces.len() == 2 {
-            let (left_singleton, right_singleton) = partition_by.partition(surfaces);
+fn build_tree_rec(
+    partition_by: &PartitionBy,
+    mut partial_nodes: Vec<Node>,
+    surfaces: &mut [Surface],
+) -> Vec<Node> {
+    if surfaces.len() == 1 {
+        partial_nodes.push(Node::Leaf(surfaces[0].clone()));
+    } else if surfaces.len() == 2 {
+        let (left_singleton, right_singleton) = partition_by.partition(surfaces);
 
-            let left = left_singleton[0].clone();
-            let right = right_singleton[0].clone();
+        let left = left_singleton[0].clone();
+        let right = right_singleton[0].clone();
 
-            partial_nodes.push(Node::Internal(
-                Some(partial_nodes.len() + 2),
-                AABB::merge(left.bounding_box(), right.bounding_box()),
-            ));
-            partial_nodes.push(Node::Leaf(left));
-            partial_nodes.push(Node::Leaf(right));
-        } else {
-            let (left, right) = partition_by.partition(surfaces);
+        partial_nodes.push(Node::Internal(
+            Some(partial_nodes.len() + 2),
+            AABB::merge(left.bounding_box(), right.bounding_box()),
+        ));
+        partial_nodes.push(Node::Leaf(left));
+        partial_nodes.push(Node::Leaf(right));
+    } else {
+        let (left, right) = partition_by.partition(surfaces);
 
-            let parent_idx = partial_nodes.len();
-            partial_nodes.push(Node::Placeholder);
+        let parent_idx = partial_nodes.len();
+        partial_nodes.push(Node::Placeholder);
 
-            partial_nodes = Self::build_tree_rec(partition_by, partial_nodes, left);
-            let right_idx = partial_nodes.len();
-            partial_nodes = Self::build_tree_rec(partition_by, partial_nodes, right);
+        partial_nodes = build_tree_rec(partition_by, partial_nodes, left);
+        let right_idx = partial_nodes.len();
+        partial_nodes = build_tree_rec(partition_by, partial_nodes, right);
 
-            partial_nodes[parent_idx] = Node::Internal(
-                Some(right_idx),
-                AABB::merge(
-                    partial_nodes[parent_idx + 1].bounding_box(),
-                    partial_nodes[right_idx].bounding_box(),
-                ),
-            )
-        }
-
-        partial_nodes
+        partial_nodes[parent_idx] = Node::Internal(
+            Some(right_idx),
+            AABB::merge(
+                partial_nodes[parent_idx + 1].bounding_box(),
+                partial_nodes[right_idx].bounding_box(),
+            ),
+        )
     }
+
+    partial_nodes
 }
 
 impl Hittable for BVH {
