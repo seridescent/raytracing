@@ -10,60 +10,146 @@ use crate::{
     vector::Vector3,
 };
 
+/// Strategies for partitioning the surfaces in a given bounding volume.
 pub enum PartitionBy {
     /// Sort surfaces by position along the longest axis and place half in each subtree.
     LongestAxisBisectSlice,
 
     /// Partition by position relative to midpoint of total bounding box's longest axis.
     LongestAxisMidpoint,
+
+    /// At each volume split, choose the splitting plane that minimizes cost
+    /// as defined by the surface area heuristic.
+    ///
+    /// The bucketing strategy controls what candidate splitting planes are evaluated.
+    SurfaceAreaHeuristic(SAHBucketStrategy),
+}
+
+/// Strategies for identifying candidate splitting planes
+pub enum SAHBucketStrategy {
+    /// n equal-sized buckets
+    EqualSize(u32),
+
+    /// try splitting at each surface
+    PerSurface,
+}
+
+#[derive(Debug)]
+enum Axis {
+    X,
+    Y,
+    Z,
+}
+
+impl Axis {
+    const ALL: [Axis; 3] = [Axis::X, Axis::Y, Axis::Z];
+
+    fn get_component(&self, v: &Vector3) -> f64 {
+        match self {
+            Axis::X => v.x,
+            Axis::Y => v.y,
+            Axis::Z => v.z,
+        }
+    }
 }
 
 impl PartitionBy {
-    fn position_along_longest_axis_fn(bounding_box: &AABB) -> fn(&Vector3) -> f64 {
-        enum Axis {
-            X,
-            Y,
-            Z,
-        }
+    fn longest_axis(bounding_box: &AABB) -> &Axis {
+        Axis::ALL
+            .iter()
+            .max_by(|&axis_a, &axis_b| {
+                let a = axis_a.get_component(&bounding_box.max())
+                    - axis_a.get_component(&bounding_box.min());
+                let b = axis_b.get_component(&bounding_box.max())
+                    - axis_b.get_component(&bounding_box.min());
 
-        let (longest_axis, _) = [
-            (Axis::X, bounding_box.max().x - bounding_box.min().x),
-            (Axis::Y, bounding_box.max().y - bounding_box.min().y),
-            (Axis::Z, bounding_box.max().z - bounding_box.min().z),
-        ]
-        .into_iter()
-        .max_by(|a, b| a.1.total_cmp(&b.1))
-        .unwrap(); // iterator is obviously non-empty
-
-        match longest_axis {
-            Axis::X => |bounding_box| bounding_box.x,
-            Axis::Y => |bounding_box| bounding_box.y,
-            Axis::Z => |bounding_box| bounding_box.z,
-        }
+                a.total_cmp(&b)
+            })
+            .unwrap() // iterator is obviously non-empty
     }
 
     fn partition<'s>(&self, surfaces: &'s mut [Surface]) -> (&'s mut [Surface], &'s mut [Surface]) {
         match self {
             PartitionBy::LongestAxisBisectSlice => {
                 let bounding_box = surfaces.as_ref().bounding_box();
-                let key_fn = Self::position_along_longest_axis_fn(&bounding_box);
+                let longest_axis = Self::longest_axis(&bounding_box);
 
                 surfaces.sort_unstable_by(|a, b| {
-                    key_fn(&a.bounding_box().min()).total_cmp(&key_fn(&b.bounding_box().min()))
+                    longest_axis
+                        .get_component(&a.bounding_box().min())
+                        .total_cmp(&&longest_axis.get_component(&b.bounding_box().min()))
                 });
 
                 surfaces.split_at_mut(surfaces.len() / 2)
             }
             PartitionBy::LongestAxisMidpoint => {
                 let bounding_box = surfaces.as_ref().bounding_box();
-                let key_fn = Self::position_along_longest_axis_fn(&bounding_box);
-                let midpoint = key_fn(&bounding_box.centroid());
+                let longest_axis = Self::longest_axis(&bounding_box);
+                let midpoint = longest_axis.get_component(&bounding_box.centroid());
 
                 Self::partition_in_place(surfaces, |surface| {
-                    key_fn(&surface.bounding_box().centroid()) < midpoint
+                    longest_axis.get_component(&surface.bounding_box().centroid()) < midpoint
                 })
             }
+            PartitionBy::SurfaceAreaHeuristic(bucket_strategy) => match bucket_strategy {
+                SAHBucketStrategy::EqualSize(b) => {
+                    let bounding_box = surfaces.as_ref().bounding_box();
+
+                    let (axis, split, _cost) = Axis::ALL
+                        .iter()
+                        .map(|axis| {
+                            let start = axis.get_component(&bounding_box.min());
+                            let step =
+                                axis.get_component(&bounding_box.dimensions()) / f64::from(*b);
+
+                            let (best_split, min_cost) = (1..*b)
+                                .map(|i| start + (f64::from(i) * step))
+                                .map(|split| {
+                                    let (left, right) =
+                                        Self::partition_in_place(surfaces, |surface| {
+                                            axis.get_component(&surface.bounding_box().centroid())
+                                                < split
+                                        });
+
+                                    if left.is_empty() || right.is_empty() {
+                                        return (split, f64::INFINITY);
+                                    }
+
+                                    let cost = Self::sah(left, right, &bounding_box);
+
+                                    (split, cost)
+                                })
+                                .min_by(|(_, a), (_, b)| a.total_cmp(b))
+                                .unwrap_or((0.0, f64::INFINITY));
+
+                            (axis, best_split, min_cost)
+                        })
+                        .min_by(|(_, _, a), (_, _, b)| a.total_cmp(b))
+                        .unwrap();
+
+                    Self::partition_in_place(surfaces, |surface| {
+                        axis.get_component(&surface.bounding_box().centroid()) < split
+                    })
+                }
+                SAHBucketStrategy::PerSurface => todo!(),
+            },
         }
+    }
+
+    /// The surface area heuristic estimates the BVH hit-test cost of a given partitioning of a scene.
+    fn sah(left: &[Surface], right: &[Surface], bounding_box: &AABB) -> f64 {
+        fn surface_area_factor(bounding_box: &AABB) -> f64 {
+            let dims = bounding_box.dimensions();
+            dims.x * dims.y + dims.x * dims.z + dims.y * dims.z
+        }
+
+        let parent_saf = surface_area_factor(&bounding_box);
+        let p_left = surface_area_factor(&left.bounding_box()) / parent_saf;
+        let p_right = surface_area_factor(&right.bounding_box()) / parent_saf;
+
+        const ROOT_TEST_COST: f64 = 1.0;
+
+        ROOT_TEST_COST + p_left * left.len() as f64 + p_right * right.len() as f64
     }
 
     fn partition_in_place(
@@ -221,6 +307,7 @@ impl Hittable for BVH {
 mod tests {
     use super::*;
     use crate::{geometry::Geometry, material::Material, surface::Surface, vector::Vector3};
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn test_bisect_balanced() {
@@ -415,5 +502,85 @@ mod tests {
         let actual_bvh = BVH::from_slice(Box::from(scene), &PartitionBy::LongestAxisMidpoint);
 
         assert_eq!(Box::from(expected_nodes), actual_bvh.tree)
+    }
+
+    #[test]
+    fn test_demo_sah_vs_midpoint() {
+        // Three spheres placed to show SAH advantage over midpoint splitting:
+
+        let small_left = Surface::new(
+            Geometry::sphere(Vector3::new(-10.0, 10.0, 0.0), 0.5).unwrap(),
+            Material::Dielectric {
+                refraction_index: 1.0,
+            },
+        );
+        let large_center = Surface::new(
+            Geometry::sphere(Vector3::new(-1.0, 0.0, 0.0), 3.0).unwrap(),
+            Material::Dielectric {
+                refraction_index: 1.0,
+            },
+        );
+        let small_right = Surface::new(
+            Geometry::sphere(Vector3::new(10.0, 0.0, 0.0), 0.5).unwrap(),
+            Material::Dielectric {
+                refraction_index: 1.0,
+            },
+        );
+
+        let scene = [
+            small_left.clone(),
+            large_center.clone(),
+            small_right.clone(),
+        ];
+
+        assert!(
+            PartitionBy::sah(
+                &[small_left.clone(), large_center.clone()],
+                &[small_right.clone()],
+                &scene.as_slice().bounding_box()
+            ) > PartitionBy::sah(
+                &[small_right.clone(), large_center.clone()],
+                &[small_left.clone()],
+                &scene.as_slice().bounding_box()
+            )
+        );
+
+        // midpoint splitting produces suboptimal pairing in this test case
+        let midpoint_expected = [
+            Node::Internal(Some(4), scene.as_slice().bounding_box()),
+            // Left group: small_left + large_center (huge bbox spanning x=[-10.5,2] y=[-3,10.5])
+            Node::Internal(
+                Some(3),
+                AABB::merge(small_left.bounding_box(), large_center.bounding_box()),
+            ),
+            Node::Leaf(large_center.clone()),
+            Node::Leaf(small_left.clone()),
+            // Right group: just small_right
+            Node::Leaf(small_right.clone()),
+        ];
+
+        let midpoint_bvh =
+            BVH::from_slice(Box::from(scene.clone()), &PartitionBy::LongestAxisMidpoint);
+        assert_eq!(Box::from(midpoint_expected), midpoint_bvh.tree);
+
+        let sah_expected = [
+            Node::Internal(Some(4), scene.as_slice().bounding_box()),
+            Node::Internal(
+                Some(3),
+                [small_right.clone(), large_center.clone()]
+                    .as_slice()
+                    .bounding_box(),
+            ),
+            Node::Leaf(large_center.clone()),
+            Node::Leaf(small_right.clone()),
+            Node::Leaf(small_left.clone()),
+        ];
+
+        let sah_bvh = BVH::from_slice(
+            Box::from(scene),
+            &PartitionBy::SurfaceAreaHeuristic(SAHBucketStrategy::EqualSize(8)),
+        );
+
+        assert_eq!(Box::from(sah_expected), sah_bvh.tree)
     }
 }

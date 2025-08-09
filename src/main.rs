@@ -2,7 +2,7 @@ use std::error::Error;
 use std::time::Instant;
 
 use rand::{random, random_range};
-use raytracing::bvh::{BVH, PartitionBy};
+use raytracing::bvh::{BVH, PartitionBy, SAHBucketStrategy};
 use raytracing::camera::Camera;
 use raytracing::geometry::{ConstructSphereError, Geometry};
 use raytracing::interval::Interval;
@@ -170,7 +170,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         ..Default::default()
     };
 
-    let world = BVH::from_slice(world.into_boxed_slice(), &PartitionBy::LongestAxisMidpoint);
+    let world = BVH::from_slice(
+        world.into_boxed_slice(),
+        &PartitionBy::SurfaceAreaHeuristic(SAHBucketStrategy::EqualSize(64)),
+        // &PartitionBy::LongestAxisMidpoint,
+    );
 
     let render_start_time = Instant::now();
     camera.initialize().render(&world);
