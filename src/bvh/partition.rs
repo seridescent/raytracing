@@ -15,13 +15,13 @@ enum Axis {
 
 impl Axis {
     pub const ALL: [Axis; 3] = [Axis::X, Axis::Y, Axis::Z];
+}
 
-    pub fn get_component(&self, v: &Vector3) -> f64 {
-        match self {
-            Axis::X => v.x,
-            Axis::Y => v.y,
-            Axis::Z => v.z,
-        }
+fn get_component(axis: &Axis, v: &Vector3) -> f64 {
+    match axis {
+        Axis::X => v.x,
+        Axis::Y => v.y,
+        Axis::Z => v.z,
     }
 }
 
@@ -29,10 +29,10 @@ fn longest_axis(bounding_box: &AABB) -> &Axis {
     Axis::ALL
         .iter()
         .max_by(|&axis_a, &axis_b| {
-            let a = axis_a.get_component(&bounding_box.max())
-                - axis_a.get_component(&bounding_box.min());
-            let b = axis_b.get_component(&bounding_box.max())
-                - axis_b.get_component(&bounding_box.min());
+            let a = get_component(axis_a, &bounding_box.max())
+                - get_component(axis_a, &bounding_box.min());
+            let b = get_component(axis_b, &bounding_box.max())
+                - get_component(axis_b, &bounding_box.min());
 
             a.total_cmp(&b)
         })
@@ -60,9 +60,8 @@ pub fn longest_axis_bisect_slice(surfaces: &mut [Surface]) -> (&mut [Surface], &
     let longest_axis = longest_axis(&bounding_box);
 
     surfaces.sort_unstable_by(|a, b| {
-        longest_axis
-            .get_component(&a.bounding_box().min())
-            .total_cmp(&&longest_axis.get_component(&b.bounding_box().min()))
+        get_component(longest_axis, &a.bounding_box().min())
+            .total_cmp(&get_component(longest_axis, &b.bounding_box().min()))
     });
 
     surfaces.split_at_mut(surfaces.len() / 2)
@@ -71,10 +70,10 @@ pub fn longest_axis_bisect_slice(surfaces: &mut [Surface]) -> (&mut [Surface], &
 pub fn longest_axis_midpoint(surfaces: &mut [Surface]) -> (&mut [Surface], &mut [Surface]) {
     let bounding_box = surfaces.as_ref().bounding_box();
     let longest_axis = longest_axis(&bounding_box);
-    let midpoint = longest_axis.get_component(&bounding_box.centroid());
+    let midpoint = get_component(longest_axis, &bounding_box.centroid());
 
     partition_in_place(surfaces, |surface| {
-        longest_axis.get_component(&surface.bounding_box().centroid()) < midpoint
+        get_component(longest_axis, &surface.bounding_box().centroid()) < midpoint
     })
 }
 
@@ -109,14 +108,14 @@ pub mod sah {
             let (axis, split, _cost) = Axis::ALL
                 .iter()
                 .map(|axis| {
-                    let start = axis.get_component(&bounding_box.min());
-                    let step = axis.get_component(&bounding_box.dimensions()) / f64::from(buckets);
+                    let start = get_component(axis, &bounding_box.min());
+                    let step = get_component(axis, &bounding_box.dimensions()) / f64::from(buckets);
 
                     let (best_split, min_cost) = (1..buckets)
                         .map(|i| start + (f64::from(i) * step))
                         .map(|split| {
                             let (left, right) = partition_in_place(surfaces, |surface| {
-                                axis.get_component(&surface.bounding_box().centroid()) < split
+                                get_component(axis, &surface.bounding_box().centroid()) < split
                             });
 
                             if left.is_empty() || right.is_empty() {
@@ -136,7 +135,7 @@ pub mod sah {
                 .unwrap();
 
             partition_in_place(surfaces, |surface| {
-                axis.get_component(&surface.bounding_box().centroid()) < split
+                get_component(axis, &surface.bounding_box().centroid()) < split
             })
         }
     }
