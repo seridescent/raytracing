@@ -1,6 +1,7 @@
 use thiserror::Error;
 
 use crate::{
+    aabb::AABB,
     interval::Interval,
     ray::Ray,
     vector::{Vector3, dot},
@@ -16,6 +17,7 @@ pub struct Hit {
     pub front_face: bool,
 }
 
+#[derive(Clone, PartialEq, Debug)]
 pub enum Geometry {
     Sphere { center: Vector3, radius: f64 },
 }
@@ -40,6 +42,12 @@ impl Geometry {
             Geometry::Sphere { center, radius } => sphere::hit(center, radius, ray, ray_t),
         }
     }
+
+    pub fn bounding_box(&self) -> AABB {
+        match *self {
+            Geometry::Sphere { center, radius } => sphere::bounding_box(center, radius),
+        }
+    }
 }
 
 pub fn compute_face_normal(ray: &Ray, outward_normal: Vector3) -> (bool, Vector3) {
@@ -56,6 +64,7 @@ pub fn compute_face_normal(ray: &Ray, outward_normal: Vector3) -> (bool, Vector3
 
 mod sphere {
     use crate::{
+        aabb::AABB,
         interval::Interval,
         ray::Ray,
         vector::{Vector3, dot},
@@ -101,5 +110,10 @@ mod sphere {
             face_normal,
             front_face,
         })
+    }
+
+    pub fn bounding_box(center: Vector3, radius: f64) -> AABB {
+        let radii = Vector3::new(radius, radius, radius);
+        AABB::new(center + radii, center - radii)
     }
 }

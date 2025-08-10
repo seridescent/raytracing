@@ -2,6 +2,7 @@ use std::error::Error;
 use std::time::Instant;
 
 use rand::{random, random_range};
+use raytracing::bvh::{BVH, PartitionBy, SAHBucketStrategy};
 use raytracing::camera::Camera;
 use raytracing::geometry::{ConstructSphereError, Geometry};
 use raytracing::interval::Interval;
@@ -169,11 +170,19 @@ fn main() -> Result<(), Box<dyn Error>> {
         ..Default::default()
     };
 
+    let world = BVH::from_slice(
+        world.into_boxed_slice(),
+        &PartitionBy::SurfaceAreaHeuristic(SAHBucketStrategy::PerSurface),
+    );
+
+    let render_start_time = Instant::now();
     camera.initialize().render(&world);
 
+    let finished_time = Instant::now();
     eprintln!(
-        "\n\nDone! Ran for {:#?}",
-        Instant::now().duration_since(start_time)
+        "\n\nDone!\nTotal runtime: {:#?}\nRendering runtime: {:#?}",
+        finished_time.duration_since(start_time),
+        finished_time.duration_since(render_start_time),
     );
 
     Ok(())

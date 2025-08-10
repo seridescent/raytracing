@@ -4,7 +4,7 @@ use rand::{random, random_range};
 
 use crate::interval::Interval;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Vector3 {
     pub x: f64,
     pub y: f64,
@@ -24,7 +24,7 @@ impl Vector3 {
         z: 0.,
     };
 
-    pub fn new(x: f64, y: f64, z: f64) -> Self {
+    pub const fn new(x: f64, y: f64, z: f64) -> Self {
         Self { x, y, z }
     }
 
@@ -38,6 +38,14 @@ impl Vector3 {
 
     pub fn to_unit(self) -> Self {
         self / self.length()
+    }
+
+    pub fn abs(self) -> Self {
+        Self {
+            x: self.x.abs(),
+            y: self.y.abs(),
+            z: self.z.abs(),
+        }
     }
 
     pub fn random_range(range: Interval) -> Self {
@@ -192,6 +200,18 @@ impl ops::Div<f64> for Vector3 {
 impl ops::DivAssign<f64> for Vector3 {
     fn div_assign(&mut self, rhs: f64) {
         *self *= 1.0 / rhs;
+    }
+}
+
+impl ops::Div<Vector3> for Vector3 {
+    type Output = Self;
+
+    fn div(self, rhs: Vector3) -> Self::Output {
+        Self {
+            x: self.x / rhs.x,
+            y: self.y / rhs.y,
+            z: self.z / rhs.z,
+        }
     }
 }
 
