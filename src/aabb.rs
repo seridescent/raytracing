@@ -23,11 +23,11 @@ impl AABB {
     }
 
     pub fn dimensions(&self) -> Vector3 {
-        (self.max - self.min).abs()
+        self.max - self.min
     }
 
     pub fn centroid(&self) -> Vector3 {
-        self.min + ((self.max - self.min) / 2.0)
+        self.min + (self.dimensions() / 2.0)
     }
 
     pub fn new(a: Vector3, b: Vector3) -> Self {

@@ -78,12 +78,16 @@ pub fn longest_axis_midpoint(surfaces: &mut [Surface]) -> (&mut [Surface], &mut 
 }
 
 pub mod sah {
-    use std::{
-        f64,
-        iter::{once, zip},
-    };
+    use std::iter::zip;
+
+    use crate::interval::Interval;
 
     use super::*;
+
+    fn surface_area_factor(bounding_box: &AABB) -> f64 {
+        let dims = bounding_box.dimensions();
+        dims.x * dims.y + dims.x * dims.z + dims.y * dims.z
+    }
 
     pub fn surface_area_heuristic(
         left: &AABB,
@@ -92,11 +96,6 @@ pub mod sah {
         n_right: usize,
         bounding_box: &AABB,
     ) -> f64 {
-        fn surface_area_factor(bounding_box: &AABB) -> f64 {
-            let dims = bounding_box.dimensions();
-            dims.x * dims.y + dims.x * dims.z + dims.y * dims.z
-        }
-
         let parent_saf = surface_area_factor(bounding_box);
         let p_left = surface_area_factor(left) / parent_saf;
         let p_right = surface_area_factor(right) / parent_saf;
@@ -106,27 +105,18 @@ pub mod sah {
         ROOT_TEST_COST + p_left * n_left as f64 + p_right * n_right as f64
     }
 
-    fn bounding_boxes_prefix_list<'a, I>(bounding_boxes: I) -> impl Iterator<Item = AABB>
-    where
-        I: Iterator<Item = &'a AABB>,
-    {
-        let mut acc_forward = AABB::EMPTY;
-        bounding_boxes.map(move |forward| {
-            acc_forward = AABB::merge(acc_forward.clone(), forward.clone());
-
-            acc_forward.clone()
-        })
-    }
-
     #[derive(Debug, Clone)]
     struct SplitVolumes {
+        n_left: usize,
         left: AABB,
+        n_right: usize,
         right: AABB,
-        split_at: f64,
+        /// left includes the item at axis = interval.min
+        interval: Interval,
     }
 
     /// splits[n_left] = (surfaces[..n_left].bounding_box(), surfaces[n_left..].bounding_box())
-    fn splits_cache(surfaces: &[Surface], axis: &Axis) -> Box<[SplitVolumes]> {
+    fn splits_cache(surfaces: &[Surface], axis: &Axis) -> (f64, f64, Box<[SplitVolumes]>) {
         let mut sorted_boxes = Vec::from(surfaces)
             .into_iter()
             .map(|surface| surface.bounding_box())
@@ -139,34 +129,45 @@ pub mod sah {
             a.total_cmp(&b)
         });
 
-        let forward_pf = bounding_boxes_prefix_list(sorted_boxes.iter());
-        let backward_pf = bounding_boxes_prefix_list(sorted_boxes.iter().rev())
-            .collect::<Vec<_>>()
+        let prefix = sorted_boxes[..sorted_boxes.len() - 1]
+            .iter()
+            .scan(AABB::EMPTY, |state, e| {
+                *state = AABB::merge(state.clone(), e.clone());
+
+                Some(state.clone())
+            });
+
+        let suffix_rev = sorted_boxes[1..]
+            .iter()
+            .rev()
+            .scan(AABB::EMPTY, |state, e| {
+                *state = AABB::merge(state.clone(), e.clone());
+
+                Some(state.clone())
+            })
+            .collect::<Box<_>>()
             .into_iter()
             .rev();
 
-        // add sinks at the front and back that capture splits that create 0-element partitions.
-        // relevant when splitting in equal-sized buckets.
-        once(SplitVolumes {
-            left: AABB::EMPTY,
-            right: AABB::EMPTY,
-            split_at: f64::NEG_INFINITY,
-        })
-        .chain(
-            zip(forward_pf, backward_pf)
-                .enumerate()
-                .map(|(i, (left, right))| SplitVolumes {
-                    left,
-                    right,
-                    split_at: get_component(axis, &sorted_boxes[i].centroid()),
-                }),
+        let splits: Box<[SplitVolumes]> = zip(prefix, suffix_rev)
+            .enumerate()
+            .map(|(i, (left, right))| SplitVolumes {
+                n_left: i + 1,
+                left,
+                n_right: sorted_boxes.len() - i - 1,
+                right,
+                interval: Interval::new(
+                    get_component(axis, &sorted_boxes[i].centroid()),
+                    get_component(axis, &sorted_boxes[i + 1].centroid()),
+                ),
+            })
+            .collect();
+
+        (
+            splits[0].interval.min,
+            splits.last().unwrap().interval.max,
+            splits,
         )
-        .chain(once(SplitVolumes {
-            left: AABB::EMPTY,
-            right: AABB::EMPTY,
-            split_at: f64::INFINITY,
-        }))
-        .collect()
     }
 
     fn partition_impl<'s>(
@@ -179,53 +180,46 @@ pub mod sah {
             let z_splits = splits_cache(surfaces, &Axis::Z);
 
             move |axis: &Axis, intercept: f64| {
-                let splits = match axis {
+                let (min, max, splits) = match axis {
                     Axis::X => &x_splits,
                     Axis::Y => &y_splits,
                     Axis::Z => &z_splits,
                 };
 
-                let n_left = splits.partition_point(|split| split.split_at < intercept) - 1;
+                if intercept < *min || intercept >= *max {
+                    // this plane doesn't actually split the scene
+                    return None;
+                }
 
-                Some((n_left, splits[n_left].clone()))
+                let idx = splits.partition_point(|split| intercept >= split.interval.max);
+
+                Some(splits[idx].clone())
             }
         };
 
         let bounding_box = surfaces.as_ref().bounding_box();
-        let n_surfaces = surfaces.len();
 
         let (axis, split, _cost) = splitting_planes
             .filter_map(|(axis, split)| {
-                let (
+                let SplitVolumes {
+                    left,
+                    right,
+                    interval: _,
                     n_left,
-                    SplitVolumes {
-                        left,
-                        right,
-                        split_at: _,
-                    },
-                ) = split_at(axis, split)?;
-
-                if left == AABB::EMPTY || right == AABB::EMPTY {
-                    return None;
-                }
+                    n_right,
+                } = split_at(axis, split)?;
 
                 Some((
                     axis,
                     split,
-                    surface_area_heuristic(
-                        &left,
-                        n_left,
-                        &right,
-                        n_surfaces - n_left,
-                        &bounding_box,
-                    ),
+                    surface_area_heuristic(&left, n_left, &right, n_right, &bounding_box),
                 ))
             })
             .min_by(|(_, _, a), (_, _, b)| a.total_cmp(b))
             .expect("No valid splitting plane");
 
         partition_in_place(surfaces, |surface| {
-            get_component(axis, &surface.bounding_box().centroid()) < split
+            get_component(axis, &surface.bounding_box().centroid()) <= split
         })
     }
 
