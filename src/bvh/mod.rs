@@ -48,7 +48,7 @@ impl PartitionBy {
     }
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 enum Node {
     Placeholder,
     /// right_idx, bounding_box
@@ -134,7 +134,7 @@ impl Hittable for BVH {
     fn hit(&self, ray: &Ray, ray_t: &Interval) -> Option<(Hit, Material)> {
         let mut stack = vec![0];
         let mut acc: Option<(Hit, Material)> = None;
-        let mut shrunken_ray_t = ray_t.clone();
+        let mut shrunken_ray_t = *ray_t;
 
         while let Some(i) = stack.pop() {
             let curr = &self.tree[i];
@@ -414,12 +414,20 @@ mod tests {
 
         assert!(
             partition::sah::surface_area_heuristic(
-                &[small_left.clone(), large_center.clone()],
-                &[small_right.clone()],
+                &[small_left.clone(), large_center.clone()]
+                    .as_ref()
+                    .bounding_box(),
+                2,
+                &[small_right.clone()].as_ref().bounding_box(),
+                1,
                 &scene.as_slice().bounding_box()
             ) > partition::sah::surface_area_heuristic(
-                &[small_right.clone(), large_center.clone()],
-                &[small_left.clone()],
+                &[small_right.clone(), large_center.clone()]
+                    .as_ref()
+                    .bounding_box(),
+                2,
+                &[small_left.clone()].as_ref().bounding_box(),
+                1,
                 &scene.as_slice().bounding_box()
             )
         );
@@ -455,11 +463,18 @@ mod tests {
             Node::Leaf(small_left.clone()),
         ];
 
-        let sah_bvh = BVH::from_slice(
-            Box::from(scene),
+        let sah_bvh_equal_buckets = BVH::from_slice(
+            Box::from(scene.clone()),
             &PartitionBy::SurfaceAreaHeuristic(SAHBucketStrategy::EqualSize(8)),
         );
 
-        assert_eq!(Box::from(sah_expected), sah_bvh.tree)
+        assert_eq!(Box::from(sah_expected.clone()), sah_bvh_equal_buckets.tree);
+
+        let sah_bvh_per_surface = BVH::from_slice(
+            Box::from(scene),
+            &PartitionBy::SurfaceAreaHeuristic(SAHBucketStrategy::PerSurface),
+        );
+
+        assert_eq!(Box::from(sah_expected), sah_bvh_per_surface.tree);
     }
 }

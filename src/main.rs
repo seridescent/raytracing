@@ -172,8 +172,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let world = BVH::from_slice(
         world.into_boxed_slice(),
-        &PartitionBy::SurfaceAreaHeuristic(SAHBucketStrategy::EqualSize(64)),
-        // &PartitionBy::LongestAxisMidpoint,
+        &PartitionBy::SurfaceAreaHeuristic(SAHBucketStrategy::PerSurface),
     );
 
     let render_start_time = Instant::now();
