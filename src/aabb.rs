@@ -74,4 +74,15 @@ impl AABB {
 
         lowers_max < uppers_min
     }
+
+    pub fn padded(&self, padding: f64) -> AABB {
+        let dims = self.dimensions();
+        let padding = Vector3::new(
+            dims.x.max(padding),
+            dims.y.max(padding),
+            dims.z.max(padding),
+        );
+
+        AABB::new(self.min - padding, self.max + padding)
+    }
 }

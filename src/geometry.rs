@@ -4,7 +4,7 @@ use crate::{
     aabb::AABB,
     interval::Interval,
     ray::Ray,
-    vector::{Vector3, dot},
+    vector::{Vector3, cross, dot},
 };
 
 #[derive(Clone)]
@@ -19,7 +19,18 @@ pub struct Hit {
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum Geometry {
-    Sphere { center: Vector3, radius: f64 },
+    Sphere {
+        center: Vector3,
+        radius: f64,
+    },
+    Quadrilateral {
+        q: Vector3,
+        u: Vector3,
+        v: Vector3,
+        norm: Vector3,
+        d: f64,
+        w: Vector3,
+    },
 }
 
 #[derive(Error, Debug)]
@@ -37,20 +48,49 @@ impl Geometry {
         }
     }
 
+    pub fn quadrilateral(q: Vector3, u: Vector3, v: Vector3) -> Self {
+        let n = cross(u, v);
+        let norm = n.to_unit();
+        Self::Quadrilateral {
+            q,
+            u,
+            v,
+            norm,
+            d: dot(norm, q),
+            w: n / dot(n, n),
+        }
+    }
+
     pub fn hit(&self, ray: &Ray, ray_t: &Interval) -> Option<Hit> {
         match *self {
             Geometry::Sphere { center, radius } => sphere::hit(center, radius, ray, ray_t),
+            Geometry::Quadrilateral {
+                q,
+                u,
+                v,
+                norm,
+                d,
+                w,
+            } => quad::hit(q, u, v, norm, d, w, ray, ray_t),
         }
     }
 
     pub fn bounding_box(&self) -> AABB {
         match *self {
             Geometry::Sphere { center, radius } => sphere::bounding_box(center, radius),
+            Geometry::Quadrilateral {
+                q,
+                u,
+                v,
+                norm: _,
+                d: _,
+                w: _,
+            } => quad::bounding_box(q, u, v),
         }
     }
 }
 
-pub fn compute_face_normal(ray: &Ray, outward_normal: Vector3) -> (bool, Vector3) {
+fn compute_face_normal(ray: &Ray, outward_normal: Vector3) -> (bool, Vector3) {
     let front_face = dot(ray.direction, outward_normal) < 0.0;
 
     let face_normal = if front_face {
@@ -60,6 +100,15 @@ pub fn compute_face_normal(ray: &Ray, outward_normal: Vector3) -> (bool, Vector3
     };
 
     (front_face, face_normal)
+}
+
+fn plane_intersection(norm: Vector3, d: f64, ray: &Ray) -> Option<f64> {
+    let denominator = dot(norm, ray.direction);
+    if denominator.abs() < 1e-10 {
+        return None;
+    }
+
+    Some((d - dot(norm, ray.origin)) / denominator)
 }
 
 mod sphere {
@@ -115,5 +164,57 @@ mod sphere {
     pub fn bounding_box(center: Vector3, radius: f64) -> AABB {
         let radii = Vector3::new(radius, radius, radius);
         AABB::new(center + radii, center - radii)
+    }
+}
+
+mod quad {
+    use crate::{
+        aabb::AABB,
+        geometry::plane_intersection,
+        interval::Interval,
+        ray::Ray,
+        vector::{Vector3, cross, dot},
+    };
+
+    use super::{Hit, compute_face_normal};
+
+    pub fn hit(
+        q: Vector3,
+        u: Vector3,
+        v: Vector3,
+        norm: Vector3,
+        d: f64,
+        w: Vector3,
+        ray: &Ray,
+        ray_t: &Interval,
+    ) -> Option<Hit> {
+        let t = plane_intersection(norm, d, ray)?;
+
+        if !ray_t.contains(t) {
+            return None;
+        }
+
+        let p = ray.at(t);
+
+        // uv coordinates
+        let qp = p - q;
+        let alpha = dot(w, cross(qp, v));
+        let beta = dot(w, cross(u, qp));
+
+        if !Interval::UNIT.contains(alpha) || !Interval::UNIT.contains(beta) {
+            return None;
+        }
+
+        let (front_face, face_normal) = compute_face_normal(ray, norm);
+        Some(Hit {
+            t,
+            p,
+            face_normal,
+            front_face,
+        })
+    }
+
+    pub fn bounding_box(q: Vector3, u: Vector3, v: Vector3) -> AABB {
+        AABB::new(q, q + u + v).padded(0.0001)
     }
 }
