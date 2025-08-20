@@ -81,8 +81,8 @@
               let
                 rustToolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
 
-                run-example = pkgs.writeShellApplication {
-                  name = "run-example";
+                runex = pkgs.writeShellApplication {
+                  name = "runex";
                   runtimeInputs = [ rustToolchain ];
                   text = ''
                     if [[ $# -ne 1 ]]; then
@@ -92,7 +92,7 @@
 
                     # Move previous output if it exists
                     if [[ -f out.ppm ]]; then
-                        mv out.ppm prev_out.ppm
+                        cp out.ppm prev_out.ppm
                     fi
 
                     # Run the example and capture output
@@ -100,8 +100,8 @@
                   '';
                 };
 
-                run-example-completions = pkgs.stdenv.mkDerivation {
-                  name = "run-example-completions";
+                runex-completions = pkgs.stdenv.mkDerivation {
+                  name = "runex-completions";
                   phases = [ "installPhase" ];
                   nativeBuildInputs = [ pkgs.installShellFiles ];
                   buildInputs = [
@@ -109,9 +109,9 @@
                     pkgs.jq
                   ];
                   installPhase = ''
-                    installShellCompletion --cmd run-example \
+                    installShellCompletion --cmd runex \
                       --fish <(cat <<'EOF'
-                    complete -c run-example -f -a '(
+                    complete -c runex -f -a '(
                         if command -q cargo; and command -q jq
                             cargo metadata --format-version 1 2>/dev/null | jq -r ".packages[] | select(.name == \"raytracing\") | .targets[] | select(.kind[] == \"example\") | .name" 2>/dev/null
                         end
@@ -121,42 +121,50 @@
                   '';
                 };
 
-                run-example-combined = pkgs.symlinkJoin {
-                  inherit (run-example) name;
+                runex-combined = pkgs.symlinkJoin {
+                  inherit (runex) name;
                   paths = [
-                    run-example
-                    run-example-completions
+                    runex
+                    runex-completions
                   ];
                 };
               in
               [
                 {
-                  name = "watch-img";
-                  help = "viu frontend that watches an image for changes";
+                  name = "cmp-imgs";
+                  help = "Compare two images side by side, watching the new one for changes";
                   package = pkgs.writeShellApplication {
-                    name = "watch-img";
+                    name = "cmp-imgs";
                     runtimeInputs = [
                       pkgs.viu
                       pkgs.fswatch
                     ];
                     text = ''
-                      # Check if file path is provided
-                      if [[ $# -ne 1 ]]; then
-                          echo "Usage: $0 <path-to-img-file>" >&2
+                      # Check if both file paths are provided
+                      if [[ $# -ne 2 ]]; then
+                          echo "Usage: $0 <old-img-file> <new-img-file>" >&2
                           exit 1
                       fi
 
-                      IMG_FILE="$1"
+                      OLD_IMG_FILE="$1"
+                      NEW_IMG_FILE="$2"
 
-                      clear
-                      viu "$IMG_FILE"
+                      display_images() {
+                          clear
+                          echo "Old image:"
+                          viu "$OLD_IMG_FILE"
+                          echo
+                          echo "New image:"
+                          viu "$NEW_IMG_FILE"
+                      }
 
-                      # Watch for changes and re-render
+                      display_images
+
+                      # Watch for changes in the new image file and re-render
                       # for some reason, fsevents_monitor is really slow on my macbook,
                       # so we use poll_monitor instead.
-                      fswatch -m poll_monitor -o "$IMG_FILE" | while read -r; do
-                          clear
-                          viu "$IMG_FILE"
+                      fswatch -m poll_monitor -o "$NEW_IMG_FILE" | while read -r; do
+                          display_images
                       done
                     '';
                   };
@@ -164,7 +172,7 @@
                 {
                   name = "runex";
                   help = "Run a cargo example with output redirection and backup";
-                  package = run-example-combined;
+                  package = runex-combined;
                 }
               ];
 
