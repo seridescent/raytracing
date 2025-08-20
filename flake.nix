@@ -77,39 +77,96 @@
             env = [
             ];
 
-            commands = [
-              {
-                name = "watch-img";
-                help = "viu frontend that watches an image for changes";
-                package = pkgs.writeShellApplication {
-                  name = "watch-img";
-                  runtimeInputs = [
-                    pkgs.viu
-                    pkgs.fswatch
-                  ];
+            commands =
+              let
+                rustToolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+
+                run-example = pkgs.writeShellApplication {
+                  name = "run-example";
+                  runtimeInputs = [ rustToolchain ];
                   text = ''
-                    # Check if file path is provided
                     if [[ $# -ne 1 ]]; then
-                        echo "Usage: $0 <path-to-img-file>" >&2
+                        echo "Usage: $0 <example-name>" >&2
                         exit 1
                     fi
 
-                    IMG_FILE="$1"
+                    # Move previous output if it exists
+                    if [[ -f out.ppm ]]; then
+                        mv out.ppm prev_out.ppm
+                    fi
 
-                    clear
-                    viu "$IMG_FILE"
-
-                    # Watch for changes and re-render
-                    # for some reason, fsevents_monitor is really slow on my macbook,
-                    # so we use poll_monitor instead.
-                    fswatch -m poll_monitor -o "$IMG_FILE" | while read -r; do
-                        clear
-                        viu "$IMG_FILE"
-                    done
+                    # Run the example and capture output
+                    cargo run --example "$1" --release > out.tmp && mv out.tmp out.ppm
                   '';
                 };
-              }
-            ];
+
+                run-example-completions = pkgs.stdenv.mkDerivation {
+                  name = "run-example-completions";
+                  phases = [ "installPhase" ];
+                  nativeBuildInputs = [ pkgs.installShellFiles ];
+                  buildInputs = [
+                    rustToolchain
+                    pkgs.jq
+                  ];
+                  installPhase = ''
+                    installShellCompletion --cmd run-example \
+                      --fish <(cat <<'EOF'
+                    complete -c run-example -f -a '(
+                        if command -q cargo; and command -q jq
+                            cargo metadata --format-version 1 2>/dev/null | jq -r ".packages[] | select(.name == \"raytracing\") | .targets[] | select(.kind[] == \"example\") | .name" 2>/dev/null
+                        end
+                    )'
+                    EOF
+                    )
+                  '';
+                };
+
+                run-example-combined = pkgs.symlinkJoin {
+                  inherit (run-example) name;
+                  paths = [
+                    run-example
+                    run-example-completions
+                  ];
+                };
+              in
+              [
+                {
+                  name = "watch-img";
+                  help = "viu frontend that watches an image for changes";
+                  package = pkgs.writeShellApplication {
+                    name = "watch-img";
+                    runtimeInputs = [
+                      pkgs.viu
+                      pkgs.fswatch
+                    ];
+                    text = ''
+                      # Check if file path is provided
+                      if [[ $# -ne 1 ]]; then
+                          echo "Usage: $0 <path-to-img-file>" >&2
+                          exit 1
+                      fi
+
+                      IMG_FILE="$1"
+
+                      clear
+                      viu "$IMG_FILE"
+
+                      # Watch for changes and re-render
+                      # for some reason, fsevents_monitor is really slow on my macbook,
+                      # so we use poll_monitor instead.
+                      fswatch -m poll_monitor -o "$IMG_FILE" | while read -r; do
+                          clear
+                          viu "$IMG_FILE"
+                      done
+                    '';
+                  };
+                }
+                {
+                  name = "runex";
+                  help = "Run a cargo example with output redirection and backup";
+                  package = run-example-combined;
+                }
+              ];
 
             devshell = {
               packagesFrom = [
