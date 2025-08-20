@@ -21,6 +21,8 @@ pub struct Camera {
 
     pub defocus_angle: f64,
     pub focus_dist: f64,
+
+    pub background: Vector3,
 }
 
 pub struct InitializedCamera {
@@ -28,6 +30,7 @@ pub struct InitializedCamera {
     samples_per_pixel: u32,
     max_depth: u32,
     defocus_angle: f64,
+    background: Vector3,
 
     image_height: u32,
     pixel_samples_scale: f64,
@@ -52,6 +55,7 @@ impl Default for Camera {
             v_up: Vector3::new(0.0, 1.0, 0.0),
             defocus_angle: 0.0,
             focus_dist: 10.0,
+            background: Vector3::ZERO,
         }
     }
 }
@@ -96,6 +100,7 @@ impl Camera {
             samples_per_pixel: self.samples_per_pixel,
             max_depth: self.max_depth,
             defocus_angle: self.defocus_angle,
+            background: self.background,
             image_height,
             center,
             pixel00_loc,
@@ -128,7 +133,6 @@ impl InitializedCamera {
         let mut pixels = (0..self.image_height)
             .into_par_iter()
             .flat_map(|row| {
-                let world_ref = world;
                 (0..self.image_width).into_par_iter().map({
                     move |col| {
                         Pixel::new(
@@ -137,7 +141,7 @@ impl InitializedCamera {
                                 .into_par_iter()
                                 .map(|_| sample_square())
                                 .map(|offset| self.get_ray(col, row, offset))
-                                .map(|ray| ray_color_iterative(ray, world_ref, self.max_depth))
+                                .map(|ray| ray_color(ray, world, self.max_depth, self.background))
                                 .reduce(|| Vector3::ZERO, |acc, e| acc + e)
                                 * self.pixel_samples_scale,
                         )
@@ -177,25 +181,36 @@ fn sample_square() -> Vector3 {
     Vector3::new(random::<f64>() - 0.5, random::<f64>() - 0.5, 0.0)
 }
 
-#[allow(dead_code)]
-fn ray_color(ray: Ray, world: &impl Hittable, remaining_ray_bounces: u32) -> Vector3 {
+fn ray_color(
+    ray: Ray,
+    world: &impl Hittable,
+    remaining_ray_bounces: u32,
+    background: Vector3,
+) -> Vector3 {
     if remaining_ray_bounces == 0 {
         return Vector3::ZERO;
     }
 
     if let Some((hit, material)) = world.hit(&ray, &Interval::new(0.001, f64::INFINITY)) {
+        let emitted = material.emitted(&ray, &hit);
         return match material.scatter(&ray, &hit) {
             Some(scatter) => {
-                ray_color(scatter.ray, world, remaining_ray_bounces - 1) * scatter.attenuation
+                let scattered =
+                    ray_color(scatter.ray, world, remaining_ray_bounces - 1, background)
+                        * scatter.attenuation;
+                emitted + scattered
             }
-            None => Vector3::ZERO,
+            None => emitted,
         };
     }
 
-    blue_white_gradient(ray)
+    background
 }
 
+#[allow(dead_code, unreachable_code, unused_variables)]
 fn ray_color_iterative(ray: Ray, world: &impl Hittable, max_ray_bounces: u32) -> Vector3 {
+    todo!("account for emitting materials");
+
     let mut next_ray = ray;
     let mut total_attenuation = Vector3::new(1.0, 1.0, 1.0);
     let mut computed_bounces = 0;

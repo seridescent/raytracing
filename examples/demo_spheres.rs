@@ -23,10 +23,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         defocus_angle: 10.0,
         focus_dist: 3.4,
 
+        background: Vector3::new(0.7, 0.8, 1.0),
+
         ..Default::default()
     };
 
     // FIXME: concentric spheres currently break partitioning
+    // can i make a generic datatype like SharedCentroid that wraps a container of surfaces?
     RenderRunner {
         camera,
         ..Default::default()

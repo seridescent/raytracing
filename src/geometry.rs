@@ -178,6 +178,7 @@ mod quad {
 
     use super::{Hit, compute_face_normal};
 
+    #[allow(clippy::too_many_arguments)]
     pub fn hit(
         q: Vector3,
         u: Vector3,

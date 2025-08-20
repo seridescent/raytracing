@@ -34,8 +34,7 @@ impl RenderRunner {
         let total_time = start_time.elapsed();
 
         eprintln!(
-            "\n\nDone!\nTotal runtime: {:#?}\nBVH construction: {:#?}\nRendering: {:#?}",
-            total_time, bvh_time, render_time
+            "\n\nDone!\nTotal runtime: {total_time:#?}\nBVH construction: {bvh_time:#?}\nRendering: {render_time:#?}",
         );
 
         Ok(())

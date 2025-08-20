@@ -23,6 +23,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         defocus_angle: 0.0,
         focus_dist: 1.0,
 
+        background: Vector3::new(0.7, 0.8, 1.0),
+
         ..Default::default()
     };
 
