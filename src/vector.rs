@@ -40,14 +40,6 @@ impl Vector3 {
         self / self.length()
     }
 
-    pub fn abs(self) -> Self {
-        Self {
-            x: self.x.abs(),
-            y: self.y.abs(),
-            z: self.z.abs(),
-        }
-    }
-
     pub fn random_range(range: Interval) -> Self {
         Self {
             x: random_range(range.min..range.max),

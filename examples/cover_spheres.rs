@@ -90,14 +90,7 @@ fn cover_spheres() -> Result<Box<[Surface]>, ConstructSphereError> {
                         center: sphere_center,
                         ..
                     } => (sphere_center - center).length(),
-                    Geometry::Quadrilateral {
-                        q: _,
-                        u: _,
-                        v: _,
-                        norm: _,
-                        d: _,
-                        w: _,
-                    } => unreachable!(),
+                    _ => unreachable!(),
                 })
                 .any(|dist_between_centers| {
                     dist_between_centers < (BIG_SPHERES_RADIUS + SMALL_SPHERES_RADIUS)

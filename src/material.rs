@@ -11,7 +11,9 @@ pub enum Material {
     Lambertian { albedo: Vector3 },
     Metal { albedo: Vector3, fuzz_radius: f64 },
     Dielectric { refraction_index: f64 },
+
     DiffuseLight { emit: Vector3 },
+    UVGradient { intensity: f64 },
 }
 
 impl Material {
@@ -26,10 +28,11 @@ impl Material {
                 dielectric::scatter(refraction_index, ray, hit)
             }
             Material::DiffuseLight { emit: _ } => None,
+            Material::UVGradient { intensity: _ } => None,
         }
     }
 
-    pub fn emitted(&self, _ray: &Ray, _hit: &Hit) -> Vector3 {
+    pub fn emitted(&self, _ray: &Ray, hit: &Hit) -> Vector3 {
         match *self {
             Material::Lambertian { albedo: _ } => Vector3::ZERO,
             Material::Metal {
@@ -40,6 +43,13 @@ impl Material {
                 refraction_index: _,
             } => Vector3::ZERO,
             Material::DiffuseLight { emit } => emit,
+            Material::UVGradient { intensity } => {
+                let r = 1.0 - ((0.0 - hit.alpha).powi(2) + (0.0 - hit.beta).powi(2)).sqrt();
+                let g = 1.0 - ((1.0 - hit.alpha).powi(2) + (0.0 - hit.beta).powi(2)).sqrt();
+                let b = 1.0 - ((0.0 - hit.alpha).powi(2) + (1.0 - hit.beta).powi(2)).sqrt();
+
+                Vector3::new(r, g, b) * intensity
+            }
         }
     }
 }
