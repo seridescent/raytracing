@@ -12,8 +12,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let camera = Camera {
         aspect_ratio: 16.0 / 9.0,
-        image_width: 400,
-        samples_per_pixel: 1000,
+        image_width: 1920,
+        samples_per_pixel: 1,
         max_depth: 50,
 
         v_fov: 45.0,
