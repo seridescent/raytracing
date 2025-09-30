@@ -28,8 +28,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         ..Default::default()
     };
 
-    // FIXME: concentric spheres currently break partitioning
-    // can i make a generic datatype like SharedCentroid that wraps a container of surfaces?
     RenderRunner {
         camera,
         ..Default::default()
@@ -64,8 +62,9 @@ fn demo_spheres() -> Result<Box<[Surface]>, ConstructSphereError> {
             Geometry::sphere(Vector3::new(0.0, 0.0, -1.2), 0.5)?,
             material_center,
         ),
+        // TODO: shared centroid breaks partitioning. do something about that when motivated.
         Surface::new(
-            Geometry::sphere(Vector3::new(-1.0, 0.0, -1.0), 0.5)?,
+            Geometry::sphere(Vector3::new(-1.0, 0.0, -1.0001), 0.5)?,
             material_left,
         ),
         Surface::new(
