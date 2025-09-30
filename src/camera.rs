@@ -141,7 +141,7 @@ impl InitializedCamera {
                                 .into_par_iter()
                                 .map(|_| sample_square())
                                 .map(|offset| self.get_ray(col, row, offset))
-                                .map(|ray| ray_color(ray, world, self.max_depth, self.background))
+                                .map(|ray| ray_color(&ray, world, self.max_depth, self.background))
                                 .reduce(|| Vector3::ZERO, |acc, e| acc + e)
                                 * self.pixel_samples_scale,
                         )
@@ -182,7 +182,7 @@ fn sample_square() -> Vector3 {
 }
 
 fn ray_color(
-    ray: Ray,
+    ray: &Ray,
     world: &impl Hittable,
     remaining_ray_bounces: u32,
     background: Vector3,
@@ -196,29 +196,12 @@ fn ray_color(
         return match material.scatter(&ray, &hit) {
             Some(scatter) => {
                 let scattered =
-                    ray_color(scatter.ray, world, remaining_ray_bounces - 1, background)
+                    ray_color(&scatter.ray, world, remaining_ray_bounces - 1, background)
                         * scatter.attenuation;
                 emitted + scattered
             }
             None => emitted,
         };
-    }
-
-    background
-}
-
-fn ray_color_filter_unlit(
-    ray: &Ray,
-    world: &impl Hittable,
-    remaining_ray_bounces: u32,
-    background: Vector3,
-) -> Vector3 {
-    for _ in 0..1000 {
-        let color = ray_color(ray, world, remaining_ray_bounces, background);
-
-        if color != Vector3::ZERO {
-            return color;
-        }
     }
 
     background
