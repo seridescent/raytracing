@@ -207,6 +207,23 @@ fn ray_color(
     background
 }
 
+fn ray_color_filter_unlit(
+    ray: &Ray,
+    world: &impl Hittable,
+    remaining_ray_bounces: u32,
+    background: Vector3,
+) -> Vector3 {
+    for _ in 0..1000 {
+        let color = ray_color(ray, world, remaining_ray_bounces, background);
+
+        if color != Vector3::ZERO {
+            return color;
+        }
+    }
+
+    background
+}
+
 #[allow(dead_code, unreachable_code, unused_variables)]
 fn ray_color_iterative(ray: Ray, world: &impl Hittable, max_ray_bounces: u32) -> Vector3 {
     todo!("account for emitting materials");
