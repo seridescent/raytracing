@@ -1,3 +1,4 @@
+use fork_union::{ThreadPool, for_each_prong_mut_dynamic};
 use rand::random;
 use rayon::prelude::*;
 
@@ -113,6 +114,7 @@ impl Camera {
     }
 }
 
+#[derive(Clone)]
 struct Pixel {
     pub ord: u32,
     pub color: Vector3,
@@ -126,11 +128,11 @@ impl Pixel {
 
 impl InitializedCamera {
     pub fn render(&self, world: &impl Hittable) {
-        println!("P3");
-        println!("{} {}", self.image_width, self.image_height);
-        println!("{}", 255);
+        self.render_rayon(world)
+    }
 
-        let mut pixels = (0..self.image_height)
+    pub fn render_rayon(&self, world: &impl Hittable) {
+        let pixels: Vec<Pixel> = (0..self.image_height)
             .into_par_iter()
             .flat_map(|row| {
                 (0..self.image_width).into_par_iter().map({
@@ -148,8 +150,44 @@ impl InitializedCamera {
                     }
                 })
             })
-            .collect::<Vec<Pixel>>();
+            .collect();
 
+        self.print_pixels(pixels);
+    }
+
+    pub fn render_fork_union(&self, world: &impl Hittable) {
+        let mut pool = ThreadPool::try_spawn(
+            std::thread::available_parallelism()
+                .map(|n| n.get())
+                .unwrap_or(1),
+        )
+        .expect("failed to create fork_union thread pool");
+
+        let mut pixels = vec![
+            Pixel::new(0, Vector3::ZERO);
+            self.image_width as usize * self.image_height as usize
+        ];
+
+        for_each_prong_mut_dynamic(&mut pool, &mut pixels, move |pixel_out, prong| {
+            let ord = prong.task_index as u32;
+            let row = ord / self.image_width;
+            let col = ord % self.image_width;
+            *pixel_out = Pixel::new(
+                ord,
+                (0..self.samples_per_pixel)
+                    .into_iter()
+                    .map(|_| sample_square())
+                    .map(|offset| self.get_ray(col, row, offset))
+                    .map(|ray| ray_color(&ray, world, self.max_depth, self.background))
+                    .fold(Vector3::ZERO, |acc, e| acc + e)
+                    * self.pixel_samples_scale,
+            );
+        });
+
+        self.print_pixels(pixels);
+    }
+
+    fn print_pixels(&self, mut pixels: Vec<Pixel>) {
         pixels.par_sort_unstable_by_key(|pixel| pixel.ord);
 
         let body = pixels
@@ -158,7 +196,10 @@ impl InitializedCamera {
             .collect::<Vec<String>>()
             .join("\n");
 
-        println!("{body}");
+        println!(
+            "P3\n{} {}\n255\n{body}",
+            self.image_width, self.image_height
+        );
     }
 
     fn get_ray(&self, col: u32, row: u32, offset: Vector3) -> Ray {
