@@ -1,8 +1,9 @@
 use fork_union::{ThreadPool, for_each_prong_mut, for_each_prong_mut_dynamic};
 use rand::random;
-use rayon::prelude::*;
+use rayon::{ThreadPoolBuilder, prelude::*};
 
 use crate::{
+    hw_threads,
     interval::Interval,
     ray::Ray,
     surface::Hittable,
@@ -128,7 +129,7 @@ impl Pixel {
 
 impl InitializedCamera {
     pub fn render(&self, world: &impl Hittable) {
-        self.render_fork_union(world)
+        self.render_rayon_pool(world)
     }
 
     pub fn render_rayon(&self, world: &impl Hittable) {
@@ -155,13 +156,45 @@ impl InitializedCamera {
         self.print_pixels(pixels);
     }
 
+    pub fn render_rayon_pool(&self, world: &impl Hittable) {
+        let pool = ThreadPoolBuilder::new()
+            .num_threads(hw_threads())
+            .build()
+            .expect("failed to create rayon thread pool");
+
+        let mut pixels = vec![
+            Pixel::new(0, Vector3::ZERO);
+            self.image_width as usize * self.image_height as usize
+        ];
+
+        pool.install(|| {
+            pixels
+                .par_iter_mut()
+                .enumerate()
+                .for_each(|(i, pixel_out)| {
+                    let ord = i as u32;
+                    let row = ord / self.image_width;
+                    let col = ord % self.image_width;
+
+                    *pixel_out = Pixel::new(
+                        ord,
+                        (0..self.samples_per_pixel)
+                            .into_par_iter()
+                            .map(|_| sample_square())
+                            .map(|offset| self.get_ray(col, row, offset))
+                            .map(|ray| ray_color(&ray, world, self.max_depth, self.background))
+                            .reduce(|| Vector3::ZERO, |acc, e| acc + e)
+                            * self.pixel_samples_scale,
+                    )
+                });
+        });
+
+        self.print_pixels(pixels);
+    }
+
     pub fn render_fork_union(&self, world: &impl Hittable) {
-        let mut pool = ThreadPool::try_spawn(
-            std::thread::available_parallelism()
-                .map(|n| n.get())
-                .unwrap_or(1),
-        )
-        .expect("failed to create fork_union thread pool");
+        let mut pool =
+            ThreadPool::try_spawn(hw_threads()).expect("failed to create fork_union thread pool");
 
         let mut samples = vec![
             Vector3::ZERO;
