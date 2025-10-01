@@ -1,4 +1,4 @@
-use fork_union::{ThreadPool, for_each_prong_mut_dynamic};
+use fork_union::{ThreadPool, for_each_prong_mut, for_each_prong_mut_dynamic};
 use rand::random;
 use rayon::prelude::*;
 
@@ -128,7 +128,7 @@ impl Pixel {
 
 impl InitializedCamera {
     pub fn render(&self, world: &impl Hittable) {
-        self.render_rayon(world)
+        self.render_fork_union(world)
     }
 
     pub fn render_rayon(&self, world: &impl Hittable) {
@@ -163,23 +163,37 @@ impl InitializedCamera {
         )
         .expect("failed to create fork_union thread pool");
 
+        let mut samples = vec![
+            Vector3::ZERO;
+            (self.image_width * self.image_height * self.samples_per_pixel)
+                as usize
+        ];
+
+        for_each_prong_mut_dynamic(&mut pool, &mut samples, move |color_out, prong| {
+            let ord = prong.task_index as u32 / self.samples_per_pixel;
+            let row = ord / self.image_width;
+            let col = ord % self.image_width;
+
+            let offset = sample_square();
+            let ray = self.get_ray(col, row, offset);
+
+            *color_out = ray_color(&ray, world, self.max_depth, self.background);
+        });
+
         let mut pixels = vec![
             Pixel::new(0, Vector3::ZERO);
             self.image_width as usize * self.image_height as usize
         ];
 
-        for_each_prong_mut_dynamic(&mut pool, &mut pixels, move |pixel_out, prong| {
+        for_each_prong_mut(&mut pool, &mut pixels, move |pixel_out, prong| {
             let ord = prong.task_index as u32;
-            let row = ord / self.image_width;
-            let col = ord % self.image_width;
+            let start = (ord * self.samples_per_pixel) as usize;
+            let pixel_samples = &samples[start..start + self.samples_per_pixel as usize];
             *pixel_out = Pixel::new(
                 ord,
-                (0..self.samples_per_pixel)
+                pixel_samples
                     .into_iter()
-                    .map(|_| sample_square())
-                    .map(|offset| self.get_ray(col, row, offset))
-                    .map(|ray| ray_color(&ray, world, self.max_depth, self.background))
-                    .fold(Vector3::ZERO, |acc, e| acc + e)
+                    .fold(Vector3::ZERO, |acc, &e| acc + e)
                     * self.pixel_samples_scale,
             );
         });
