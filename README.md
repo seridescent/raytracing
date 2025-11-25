@@ -16,7 +16,7 @@ The construction routine partitions and builds the compact BVH structure in the 
 I also implemented a few different partitioning strategies to play around with, ending with one that uses
 a surface area heuristic.
 
-I intended to write a deeper retro on this, but I got a little too deep on an flawed explanation of path tracing and then burnt out.
+I intended to write a deeper retro on this, but I got a little too deep on a flawed explanation of path tracing and then burnt out.
 I may spin up on that again and look more toward the software, in which case I'll link the retro here.
 In the meantime, you might like some other stuff on my website, [seridescent.com](https://seridescent.com).
 
